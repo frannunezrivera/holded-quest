@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { changeLanguage, playDemo } from '../../app';
-import { music, setMusicEnabled } from '../../audio/music';
+import { music, setSoundEnabled } from '../../audio/music';
 import { audioContext, sfx, unlockAudio } from '../../audio/sfx';
 import { loadSettings } from '../../data/store';
 import { t } from '../../i18n/i18n';
@@ -68,7 +68,7 @@ export class Title extends Phaser.Scene {
     void en;
     new Button(this, 90, 70, '⚙', () => openSettings(), { w: 96, h: 64, size: 30, color: 0x3b2f6b });
     musicButton(this, 200, 70, (on) => {
-      setMusicEnabled(on);
+      setSoundEnabled(on);
       if (on) music.play('title');
     });
 

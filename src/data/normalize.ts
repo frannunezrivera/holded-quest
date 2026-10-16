@@ -13,15 +13,19 @@ import type {
 } from './types';
 
 const IN_DOC_TYPES = new Set(['invoice', 'invoices', 'salesreceipt', 'salesreceipts', 'purchaserefund', 'purchaserefunds']);
-const OUT_DOC_TYPES = new Set(['purchase', 'purchases', 'creditnote', 'creditnotes']);
+const OUT_DOC_TYPES = new Set(['purchase', 'purchases', 'creditnote', 'creditnotes', 'payroll', 'payrolls']);
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 /**
- * Payment list items carry no in/out field, so direction comes from the document type
- * (sales docs = money in, purchases/credit notes = money out), falling back to the sign.
+ * Real responses carry `type`: 'collection' (in) or 'payment' (out), with positive amounts.
+ * Without it, the document type decides (sales docs in; purchases, payroll, credit notes out),
+ * and finally the sign.
  */
 export function paymentDirection(p: HoldedPaymentV2): 'in' | 'out' {
+  const kind = (p.type ?? '').toLowerCase();
+  if (kind === 'collection') return 'in';
+  if (kind === 'payment') return 'out';
   const type = (p.document_type ?? '').toLowerCase().replace(/[^a-z]/g, '');
   if (IN_DOC_TYPES.has(type)) return 'in';
   if (OUT_DOC_TYPES.has(type)) return 'out';
@@ -48,7 +52,7 @@ export function normalizePayment(p: HoldedPaymentV2): Payment | null {
 export function normalizeOutstandingDoc(d: HoldedDocV2, kind: Doc['kind'], today: string): Doc | null {
   const status = (d.status ?? '').toLowerCase();
   if (status === 'cancelled' || status === 'failed' || status === 'completed') return null;
-  if ((d.approval_status ?? '').toLowerCase() === 'draft') return null;
+  if (isDraft(d)) return null;
   const total = parseAmount(d.total);
   const paid = parseAmount(d.payments_total);
   const pending = d.payments_pending != null ? parseAmount(d.payments_pending) : total - paid;
@@ -72,6 +76,8 @@ export function normalizeOutstandingDoc(d: HoldedDocV2, kind: Doc['kind'], today
     daysToDue,
   };
 }
+
+export const isDraft = (d: HoldedDocV2) => (d.approval_status ?? '').toLowerCase() === 'draft' || d.draft === true || d.draft === 1;
 
 export function normalizeAccount(a: HoldedAccountV2): BankAccount | null {
   if (a.archived) return null;

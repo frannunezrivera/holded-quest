@@ -49,6 +49,22 @@ describe('normalize', () => {
     { source: 'holded', companyName: 'X', period, today },
   );
 
+  it('skips purchase drafts flagged with `draft`', () => {
+    const snap2 = normalize(
+      {
+        ...base,
+        outstandingInvoices: [],
+        outstandingPurchases: [
+          { id: 'd', date: '2026-09-01', total: '100', payments_pending: '100', status: 'pending', draft: true },
+          { id: 'r', date: '2026-09-01', total: '50', payments_pending: '50', status: 'pending', draft: false },
+        ],
+        payments: [],
+      },
+      { source: 'holded', companyName: 'X', period, today },
+    );
+    expect(snap2.owedToSuppliers.map((d) => d.id)).toEqual(['r']);
+  });
+
   it('keeps only outstanding, approved, non-cancelled invoices, most overdue first', () => {
     expect(snap.owedByClients.map((d) => d.id)).toEqual(['inv1', 'inv2']);
     const [inv1, inv2] = snap.owedByClients;
@@ -88,6 +104,10 @@ describe('normalize', () => {
   });
 
   it('derives payment direction', () => {
+    // Real v2 payments: positive amounts, direction in `type`; payroll is money out.
+    expect(paymentDirection({ id: '1', type: 'payment', document_type: 'invoice', amount: '5' })).toBe('out');
+    expect(paymentDirection({ id: '1', type: 'collection', document_type: 'purchase', amount: '5' })).toBe('in');
+    expect(paymentDirection({ id: '1', document_type: 'payroll', amount: '1500' })).toBe('out');
     expect(paymentDirection({ id: '1', document_type: 'credit-note', amount: '5' })).toBe('out');
     expect(paymentDirection({ id: '1', document_type: 'purchase_refund', amount: '5' })).toBe('in');
     expect(paymentDirection({ id: '1', amount: '-5' })).toBe('out');

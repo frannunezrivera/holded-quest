@@ -9,7 +9,7 @@ export interface Settings {
   period: PeriodId;
   volume: number; // 0..1
   muted: boolean;
-  /** Music starts off and only plays once the player turns it on (new key, so old saves don't carry 'on'). */
+  /** Sound (music and effects) starts off and only plays once the player turns it on. */
   music: boolean;
   rememberKey: boolean;
   mode: 'demo' | 'holded' | null;

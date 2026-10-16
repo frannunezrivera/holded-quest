@@ -12,6 +12,7 @@ export interface HoldedDocV2 {
   currency?: string | null;
   status?: string | null; // pending | partial | completed | cancelled | failed
   approval_status?: string | null; // draft | approved
+  draft?: boolean | number | null; // purchases expose drafts this way
   payments_total?: string | number | null;
   payments_pending?: string | number | null;
   subtotal?: string | number | null;
@@ -27,7 +28,8 @@ export interface HoldedPaymentV2 {
   description?: string | null;
   date?: string | null;
   status?: string | null;
-  document_type?: string | null; // invoice | purchase | creditnote | ...
+  document_type?: string | null; // invoice | purchase | creditnote | payroll | ...
+  type?: string | null; // 'collection' (money in) | 'payment' (money out)
   document_id?: string | null;
 }
 

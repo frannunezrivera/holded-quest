@@ -1,3 +1,4 @@
+import { isDraft } from './normalize';
 import { addDays, daysBetween, parseAmount, parseDate } from './parse';
 import type { HoldedDocV2, VatDoc, VatQuarter } from './types';
 
@@ -49,7 +50,7 @@ function vatDocs(docs: HoldedDocV2[], q: QuarterInfo): VatDoc[] {
   for (const d of docs) {
     const status = (d.status ?? '').toLowerCase();
     if (status === 'cancelled' || status === 'failed') continue;
-    if ((d.approval_status ?? '').toLowerCase() === 'draft') continue;
+    if (isDraft(d)) continue;
     const date = parseDate(d.date);
     if (!date || date < q.from || date > q.to) continue;
     const tax = parseAmount(d.tax);

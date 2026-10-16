@@ -1,3 +1,4 @@
+import { cleanLabel } from './labels';
 import { addDays, daysBetween, parseAmount, parseDate } from './parse';
 import type { BankAccount, CashEvent, CashPoint, CashSeries, FinanceSnapshot, HoldedBankMovementV2, Period } from './types';
 
@@ -45,7 +46,7 @@ export function normalizeMovement(m: HoldedBankMovementV2): Flow | null {
   const date = parseDate(m.value_date ?? m.date);
   const amount = parseAmount(m.amount);
   if (!date || amount === 0) return null;
-  return { date, amount, label: (m.description ?? m.concept ?? '').trim() };
+  return { date, amount, label: cleanLabel(m.description ?? m.concept) };
 }
 
 /**
@@ -58,17 +59,32 @@ export function cashSeriesFromMovements(
   period: Period,
   today: string,
   currency: string,
+  /** Accounts whose statement was cut by the page cap: only their newest movements are known. */
+  partial: Record<string, boolean> = {},
 ): CashSeries {
   const end = period.to < today ? period.to : today;
+  const perAccount = accounts.map((a) => ({
+    a,
+    flows: (movements[a.id] ?? []).map(normalizeMovement).filter((f): f is Flow => !!f && f.date >= period.from && f.date <= today),
+  }));
+  // A cut statement can't be walked back past its oldest line: start the river there instead
+  // of drawing a fake flat stretch.
+  let start = period.from;
+  for (const { a, flows } of perAccount) {
+    if (!partial[a.id] || !flows.length) continue;
+    const oldest = flows.reduce((m, f) => (f.date < m ? f.date : m), flows[0].date);
+    if (oldest > start) start = oldest;
+  }
+  if (start > end) start = end;
   const all: Flow[] = [];
   let total: CashPoint[] | null = null;
-  for (const a of accounts) {
-    const flows = (movements[a.id] ?? []).map(normalizeMovement).filter((f): f is Flow => !!f && f.date >= period.from && f.date <= today);
+  for (const { a, flows: allFlows } of perAccount) {
+    const flows = allFlows.filter((f) => f.date >= start);
     all.push(...flows.filter((f) => f.date <= end));
-    const series = rebuildBalances(flows, a.balance, period.from, today).filter((p) => p.date <= end);
+    const series = rebuildBalances(flows, a.balance, start, today).filter((p) => p.date <= end);
     total = total ? total.map((p, i) => ({ date: p.date, balance: Math.round((p.balance + series[i].balance) * 100) / 100 })) : series;
   }
-  return { source: 'bank', currency, anchored: true, points: total ?? rebuildBalances([], 0, period.from, end), events: biggest(all) };
+  return { source: 'bank', currency, anchored: true, points: total ?? rebuildBalances([], 0, start, end), events: biggest(all) };
 }
 
 /**
@@ -77,8 +93,8 @@ export function cashSeriesFromMovements(
  */
 export function cashSeriesFromPayments(s: FinanceSnapshot): CashSeries {
   const flows: Flow[] = [
-    ...s.collected.map((p) => ({ date: p.date, amount: p.amount, label: p.contact })),
-    ...s.paidOut.map((p) => ({ date: p.date, amount: -p.amount, label: p.contact })),
+    ...s.collected.map((p) => ({ date: p.date, amount: p.amount, label: cleanLabel(p.contact) })),
+    ...s.paidOut.map((p) => ({ date: p.date, amount: -p.amount, label: cleanLabel(p.contact) })),
   ];
   const end = s.period.to < s.today ? s.period.to : s.today;
   const closing = s.accounts ? s.accounts.reduce((acc, a) => acc + a.balance, 0) : 0;

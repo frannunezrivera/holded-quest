@@ -370,8 +370,13 @@ class Sequencer {
 
 export const music = new Sequencer();
 
-/** Turning music on also lifts "mute everything", otherwise the switch would seem broken. */
-export function setMusicEnabled(on: boolean) {
+/** The single sound switch: music and effects go on and off together. */
+export function setSoundEnabled(on: boolean) {
   if (on) unlockAudio();
-  saveSettings(on ? { music: true, muted: false } : { music: false });
+  saveSettings({ music: on, muted: !on });
 }
+
+export const soundOn = () => {
+  const s = loadSettings();
+  return s.music && !s.muted;
+};

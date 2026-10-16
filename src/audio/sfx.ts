@@ -46,7 +46,8 @@ export function unlockAudio() {
 
 export function sfx(id: SoundId, opts: { pitch?: number; volume?: number; pan?: number } = {}) {
   const s = loadSettings();
-  if (s.muted || s.volume <= 0) return;
+  // One switch for all audio: effects play only while sound is on (it starts off).
+  if (!s.music || s.muted || s.volume <= 0) return;
   const ctx = audioContext();
   if (ctx.state !== 'running') return;
   const key = `${id}:${opts.pitch ?? 1}`;

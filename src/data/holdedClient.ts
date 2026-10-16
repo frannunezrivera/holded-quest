@@ -111,22 +111,27 @@ export class HoldedClient {
 
   /** Follows `cursor` until `has_more` is false. Tolerates endpoints that return a bare array. */
   async getAll<T>(path: string, params: Params = {}, maxPages = this.maxPages): Promise<T[]> {
+    return (await this.getPaged<T>(path, params, maxPages)).items;
+  }
+
+  /** Like getAll, but also says whether the page cap cut the list short. */
+  async getPaged<T>(path: string, params: Params = {}, maxPages = this.maxPages): Promise<{ items: T[]; complete: boolean }> {
     const out: T[] = [];
     let cursor: string | undefined;
     for (let page = 0; page < maxPages; page++) {
       const body = await this.request<HoldedPage<T> | T[] | { data?: T[] }>(path, { ...params, limit: this.pageSize, cursor });
       if (Array.isArray(body)) {
         out.push(...body);
-        break;
+        return { items: out, complete: true };
       }
       const items = 'items' in body && Array.isArray(body.items) ? body.items : 'data' in body && Array.isArray(body.data) ? body.data : [];
       out.push(...items);
       const next = 'cursor' in body ? body.cursor : null;
       const hasMore = 'has_more' in body ? body.has_more : false;
-      if (!hasMore || !next || items.length === 0) break;
+      if (!hasMore || !next || items.length === 0) return { items: out, complete: true };
       cursor = next;
     }
-    return out;
+    return { items: out, complete: false };
   }
 
   /** `status=outstanding` is documented for invoices; if an endpoint rejects it, ask for pending + partial. */
@@ -143,9 +148,9 @@ export class HoldedClient {
     }
   }
 
-  /** Bank statement lines of one account; capped at a few pages to protect the monthly quota. */
-  getBankMovements(accountId: string, from: string, to: string): Promise<HoldedBankMovementV2[]> {
-    return this.getAll<HoldedBankMovementV2>(
+  /** Bank statement lines of one account (newest first); capped at a few pages to protect the monthly quota. */
+  getBankMovements(accountId: string, from: string, to: string): Promise<{ items: HoldedBankMovementV2[]; complete: boolean }> {
+    return this.getPaged<HoldedBankMovementV2>(
       `/v2/treasury/accounts/${encodeURIComponent(accountId)}/bank-movements`,
       { start_date: from, end_date: to },
       5,

@@ -33,14 +33,14 @@ npm install
 npm run dev
 ```
 
-Abre http://localhost:5173 y elige **Jugar con datos demo** o **Conectar Holded**. La música empieza apagada: actívala con el icono de la nota (en la pantalla de inicio o arriba a la derecha en el juego) o con la tecla M.
+Abre http://localhost:5173 y elige **Jugar con datos demo** o **Conectar Holded**. El sonido (música y efectos) empieza apagado: actívalo con el icono del altavoz (en la pantalla de inicio o arriba a la derecha en el juego) o con la tecla M.
 
 ### Controles
 
 | | Mundo | Minijuegos |
 |---|---|---|
 | Ratón / táctil | Clic en el suelo para andar (salta escalones solo), clic en carteles/edificios para entrar | Carretilla sigue al ratón · el cerdito vuela hacia el ratón y clic = esquive rápido · clic en un globo = gancho |
-| Teclado | ←/→ o A/D andar · ↑/W/Espacio saltar · E/Enter entrar · L libro · M música · Esc menú | Flechas/WASD · Espacio = esquive / gancho · Esc pausa |
+| Teclado | ←/→ o A/D andar · ↑/W/Espacio saltar · E/Enter entrar · L libro · M sonido · Esc menú | Flechas/WASD · Espacio = esquive / gancho · Esc pausa |
 
 ## Conectar tu cuenta de Holded
 

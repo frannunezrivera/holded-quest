@@ -1,8 +1,7 @@
 import Phaser from 'phaser';
-import { setMusicEnabled } from '../../audio/music';
+import { setSoundEnabled, soundOn } from '../../audio/music';
 import { sfx } from '../../audio/sfx';
 import { overdue, sum, totalCash, totalCollected, totalOwedByClients, totalOwedToSuppliers } from '../../data/aggregate';
-import { loadSettings } from '../../data/store';
 import { fmtDate, moneyShort, t, type MessageKey } from '../../i18n/i18n';
 import { openLedger, type LedgerTab } from '../../ui/ledger';
 import { openSettings } from '../../ui/settings';
@@ -103,7 +102,7 @@ export class Hud extends Phaser.Scene {
       zone.on('pointerout', () => tx.setScale(1));
       return tx;
     };
-    musicButton(this, rx - 216, 68, setMusicEnabled);
+    musicButton(this, rx - 216, 68, setSoundEnabled);
     btn(rx - 130, '📒', () => openLedger('collected'));
     btn(rx - 44, '⚙️', () => openSettings());
 
@@ -115,7 +114,7 @@ export class Hud extends Phaser.Scene {
 
     const onProgress = (p: Progress) => this.renderProgress(p);
     const onAch = (id: AchievementId) => this.achievementToast(id);
-    const onMute = () => setMusicEnabled(!(loadSettings().music && !loadSettings().muted));
+    const onMute = () => setSoundEnabled(!soundOn());
     state.events.on('progress', onProgress);
     state.events.on('achievement', onAch);
     this.scene.get('World')?.events.on('toggle-mute', onMute);

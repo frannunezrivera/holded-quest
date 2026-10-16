@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { sfx } from '../../audio/sfx';
 import type { Payment } from '../../data/types';
+import { short } from '../../data/labels';
 import { lang, money, num, t } from '../../i18n/i18n';
 import { drawBackdrop } from '../backdrop';
 import { burst, confetti, hitStop, popText, rectZone, shockwave, sparkle, zoomPunch } from '../fx';
@@ -332,7 +333,7 @@ export class VaultRush extends MiniGame {
     sfx(it.kind === 'coin' ? 'coin' : 'coinBig', { pitch: 0.9 + this.cargo.length * 0.08 });
     sparkle(this, this.player.x + 46, this.player.y - 40, 8);
     this.tweens.add({ targets: this.barrow, scaleY: { from: 0.9, to: 1.05 }, duration: 160, ease: 'Back.out' });
-    const who = it.payment ? ` · ${it.payment.contact}` : '';
+    const who = it.payment ? ` · ${short(it.payment.contact, 20)}` : '';
     popText(this, this.player.x + 46, this.player.y - 150, `+${money(it.value, this.currency, 0)}${who}`, '#FFE45C', 28, { rise: 70, duration: 900 });
     this.updateLoad();
   }
@@ -425,7 +426,7 @@ export class VaultRush extends MiniGame {
       formatScore: (n) => `${num(Math.round(n))} pts`,
       summary: t('rush.result', { pct, amount: money(this.securedRaw, cur, 0) }),
       listTitle: top.length ? t('rush.biggest') : undefined,
-      list: top.map((p) => [p.contact, money(p.amount, cur, 0)]),
+      list: top.map((p) => [short(p.contact, 40), money(p.amount, cur, 0)]),
     };
   }
 }

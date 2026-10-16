@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { music } from '../../audio/music';
 import { sfx } from '../../audio/sfx';
 import type { Doc } from '../../data/types';
+import { short } from '../../data/labels';
 import { money, moneyShort, num, t } from '../../i18n/i18n';
 import { planeKey } from '../art/textures';
 import { drawBackdrop } from '../backdrop';
@@ -148,7 +149,7 @@ export class DebtDodge extends MiniGame {
     const dir = aim.subtract(new Phaser.Math.Vector2(x, y)).normalize();
     const key = doc ? planeKey(doc.daysToDue) : 'plane-white';
     const img = this.add.image(x, y, key).setScale(scale).setDepth(15).setRotation(dir.angle());
-    const labelStr = doc ? `${doc.contact} · ${moneyShort(doc.pending, doc.currency)}${overdue ? ` · ${doc.daysOverdue}d` : ''}` : t('dodge.future');
+    const labelStr = doc ? `${short(doc.contact, 20)} · ${moneyShort(doc.pending, doc.currency)}${overdue ? ` · ${doc.daysOverdue}d` : ''}` : t('dodge.future');
     const label = text(this, x, y + 40, labelStr, 20, overdue ? '#FFB3BD' : doc && doc.daysToDue !== null && doc.daysToDue <= 7 ? '#FFD08A' : '#FFFFFF', { strokeThickness: 4 }).setDepth(16);
     this.planes.push({ img, label, vx: dir.x * speed, vy: dir.y * speed, speed, homing: doc && doc.daysOverdue > 30 && this.wave >= 2 ? 1.6 : 0, r: 24 * scale, doc, nearMiss: false, minDist: Infinity, dead: false, smoke: 0 });
     sfx('whoosh', { volume: 0.35, pitch: overdue ? 0.8 : 1.1 });
@@ -343,7 +344,7 @@ export class DebtDodge extends MiniGame {
       heart.setTexture('heart-empty');
       this.tweens.add({ targets: heart, scale: { from: 1.6, to: 1 }, duration: 300 });
     }
-    if (p.doc) popText(this, p.img.x, p.img.y - 50, `${p.doc.contact} · ${money(p.doc.pending, p.doc.currency, 0)}`, '#FF9AA6', 30);
+    if (p.doc) popText(this, p.img.x, p.img.y - 50, `${short(p.doc.contact, 22)} · ${money(p.doc.pending, p.doc.currency, 0)}`, '#FF9AA6', 30);
     this.removePlane(p);
     if (this.lives <= 0) {
       this.hero.setTexture('pig-fly-hurt');
@@ -390,7 +391,7 @@ export class DebtDodge extends MiniGame {
       formatScore: (n) => `${n.toFixed(1)} s`,
       summary: `${t('dodge.result', { s: Math.floor(secs) })} · ${num(Math.round(this.points))} pts · ${this.nearMisses}× ${t('dodge.nearmiss')}`,
       listTitle: unique.length ? t('dodge.hitBy') : undefined,
-      list: unique.map((d) => [`${d.contact} · ${d.number}`, `${money(d.pending, d.currency, 0)}${d.daysOverdue > 0 ? ` · ⚠ ${d.daysOverdue} d` : ''}`]),
+      list: unique.map((d) => [`${short(d.contact, 34)} · ${d.number}`, `${money(d.pending, d.currency, 0)}${d.daysOverdue > 0 ? ` · ⚠ ${d.daysOverdue} d` : ''}`]),
     };
   }
 }

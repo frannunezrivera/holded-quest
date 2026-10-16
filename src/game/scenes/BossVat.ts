@@ -3,6 +3,7 @@ import { goToWorld } from '../../app';
 import { music } from '../../audio/music';
 import { sfx } from '../../audio/sfx';
 import { daysBetween } from '../../data/parse';
+import { short } from '../../data/labels';
 import type { VatDoc, VatQuarter } from '../../data/types';
 import { fmtDate, money, moneyShort, num, t } from '../../i18n/i18n';
 import { drawBackdrop } from '../backdrop';
@@ -288,7 +289,7 @@ export class BossVat extends MiniGame {
     if (!next) return;
     const x = 160 + Math.random() * (W - 320);
     const img = this.add.image(x, -60, 'receipt').setDepth(17);
-    const who = next.docs.length > 1 ? `+${next.docs.length}` : next.docs[0].contact;
+    const who = next.docs.length > 1 ? `+${next.docs.length}` : short(next.docs[0].contact, 18);
     const label = text(this, x, -10, `−${moneyShort(next.tax, this.vat.currency)} · ${who}`, 20, '#FFE45C', { strokeThickness: 4 }).setDepth(18);
     this.receipts.push({ img, label, docs: next.docs, tax: next.tax, vx: (Math.random() - 0.5) * 80, dead: false });
   }
@@ -437,7 +438,7 @@ export class BossVat extends MiniGame {
       formatScore: (n) => `${num(Math.round(n))} pts`,
       summary: notes,
       listTitle: v.purchases.length ? t('boss.deductionsList') : undefined,
-      list: v.purchases.slice(0, 5).map((d) => [`${this.gotDocs.has(d.id) ? '✅' : '▫️'} ${d.contact} · ${d.number}`, money(d.tax, cur, 2)]),
+      list: v.purchases.slice(0, 5).map((d) => [`${this.gotDocs.has(d.id) ? '✅' : '▫️'} ${short(d.contact, 32)} · ${d.number}`, money(d.tax, cur, 2)]),
     };
   }
 }

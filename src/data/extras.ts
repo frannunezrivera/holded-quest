@@ -37,11 +37,14 @@ export async function loadCashSeries(s: FinanceSnapshot, onProgress?: (account: 
   const client = clientFor(key);
   try {
     const movements: Record<string, HoldedBankMovementV2[]> = {};
+    const partial: Record<string, boolean> = {};
     let readable = 0;
     for (const a of s.accounts) {
       onProgress?.(a.name);
       try {
-        movements[a.id] = await client.getBankMovements(a.id, s.period.from, today);
+        const { items, complete } = await client.getBankMovements(a.id, s.period.from, today);
+        movements[a.id] = items;
+        partial[a.id] = !complete;
         readable++;
       } catch (err) {
         // Gateways or cash boxes may not expose statements: keep that account flat at its balance.
@@ -50,7 +53,7 @@ export async function loadCashSeries(s: FinanceSnapshot, onProgress?: (account: 
       }
     }
     if (!readable) return cashSeriesFromPayments(s);
-    const series = cashSeriesFromMovements(s.accounts, movements, s.period, today, s.currency);
+    const series = cashSeriesFromMovements(s.accounts, movements, s.period, today, s.currency, partial);
     await saveExtra('cash', { scope, fetchedAt: new Date().toISOString(), data: series });
     return series;
   } catch (err) {

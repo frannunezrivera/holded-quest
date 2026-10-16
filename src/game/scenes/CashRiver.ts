@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { goToWorld } from '../../app';
 import { sfx } from '../../audio/sfx';
 import { seriesExtremes } from '../../data/cash';
+import { short } from '../../data/labels';
 import type { CashPoint, CashSeries } from '../../data/types';
 import { fmtDate, locale, money, moneyShort, num, t } from '../../i18n/i18n';
 import { birds, drawBackdrop } from '../backdrop';
@@ -70,6 +71,12 @@ export class CashRiver extends MiniGame {
     const p = this.pts[this.dayIndex()];
     this.timeText.setText(`📅 ${fmtDate(p.date)} · ${moneyShort(p.balance, this.series.currency)}`).setFontSize(32);
     this.timeText.setColor(p.balance < 0 ? '#FF6B7D' : '#FFFFFF');
+  }
+
+  /** The statement was cut by the page cap, so the river starts after the period does. */
+  private startedLate() {
+    const from = state.snapshot?.period.from;
+    return !!from && this.series.source === 'bank' && this.pts[0].date > from;
   }
 
   private dayIndex() {
@@ -142,8 +149,11 @@ export class CashRiver extends MiniGame {
     this.wake.setDepth(19);
     this.cameras.main.startFollow(this.raft, true, 0.1, 0.06, -W * 0.18, 0);
 
-    if (this.series.source === 'estimated') {
-      const note = text(this, W / 2, 150, '≈ ' + t(this.series.anchored ? 'river.estimated' : 'river.unanchored'), 24, '#FFE6A8', { strokeThickness: 5 })
+    const notes: string[] = [];
+    if (this.series.source === 'estimated') notes.push('≈ ' + t(this.series.anchored ? 'river.estimated' : 'river.unanchored'));
+    if (this.startedLate()) notes.push('📅 ' + t('river.partial', { date: fmtDate(this.pts[0].date) }));
+    if (notes.length) {
+      const note = text(this, W / 2, 150, notes.join('\n'), 24, '#FFE6A8', { strokeThickness: 5 })
         .setScrollFactor(0)
         .setDepth(901);
       this.tweens.add({ targets: note, alpha: 0, delay: 6000, duration: 800 });
@@ -343,7 +353,9 @@ export class CashRiver extends MiniGame {
     // Payroll would fill the list on its own: show the biggest money in and the biggest money out.
     const byAbs = [...this.series.events].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
     const top = [...byAbs.filter((e) => e.amount > 0).slice(0, 3), ...byAbs.filter((e) => e.amount < 0).slice(0, 2)];
-    const note = this.series.source === 'estimated' ? `\n≈ ${t(this.series.anchored ? 'river.estimated' : 'river.unanchored')}` : '';
+    const note =
+      (this.series.source === 'estimated' ? `\n≈ ${t(this.series.anchored ? 'river.estimated' : 'river.unanchored')}` : '') +
+      (this.startedLate() ? `\n📅 ${t('river.partial', { date: fmtDate(first.date) })}` : '');
     return {
       run: { game: 'river', score: Math.round(this.score), extra: { finished: true, caught: this.collected } },
       scene: 'CashRiver',
@@ -359,7 +371,7 @@ export class CashRiver extends MiniGame {
           date: fmtDate(min.date),
         }) + note,
       listTitle: top.length ? t('river.biggest') : undefined,
-      list: top.map((e) => [`${e.label || '—'} · ${fmtDate(e.date)}`, `${e.amount >= 0 ? '+' : '−'}${money(Math.abs(e.amount), cur, 0)}`]),
+      list: top.map((e) => [`${short(e.label || '—', 30)} · ${fmtDate(e.date)}`, `${e.amount >= 0 ? '+' : '−'}${money(Math.abs(e.amount), cur, 0)}`]),
     };
   }
 }

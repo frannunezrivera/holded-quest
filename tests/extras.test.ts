@@ -51,6 +51,17 @@ describe('cash river', () => {
     expect(seriesExtremes(series.points).max.balance).toBe(1000);
   });
 
+  it('starts the river at the oldest known line when a statement was cut short', () => {
+    const period = periodFor('thisYear', '2026-10-15');
+    const accounts = [{ id: 'a', name: 'A', type: 'bank', balance: 1000, currency: 'EUR' }];
+    const movements = { a: [{ id: '1', value_date: '2026-10-01T00:00:00+00:00', amount: '-100', description: 'N 1234567890 RECIBO LUZ' }] };
+    const cut = cashSeriesFromMovements(accounts, movements, period, '2026-10-15', 'EUR', { a: true });
+    expect(cut.points[0].date).toBe('2026-10-01');
+    expect(cut.events[0].label).toBe('Luz');
+    const full = cashSeriesFromMovements(accounts, movements, period, '2026-10-15', 'EUR');
+    expect(full.points[0].date).toBe('2026-01-01');
+  });
+
   it('estimates from payments when bank movements are unavailable', () => {
     const snap = buildDemoSnapshot('thisYear', '2026-10-15');
     const est = cashSeriesFromPayments(snap);

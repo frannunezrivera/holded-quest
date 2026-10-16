@@ -14,6 +14,7 @@ import {
   totalOwedToSuppliers,
 } from '../../data/aggregate';
 import type { SnapshotDiff } from '../../data/diff';
+import { short } from '../../data/labels';
 import { mulberry32 } from '../../data/demoData';
 import { daysToDeadline, relevantQuarter } from '../../data/vat';
 import type { Doc, FinanceSnapshot, ResourceId, Stratum } from '../../data/types';
@@ -498,7 +499,7 @@ export class World extends Phaser.Scene {
         repeat: -1,
         ease: 'Sine.inOut',
       });
-      const label = text(this, img.x, baseY - 70 * scale, `${d.contact}\n${money(d.pending, d.currency, 0)}${d.daysOverdue > 0 ? ` · ⚠ ${d.daysOverdue} d` : ''}`, 22, d.daysOverdue > 0 ? '#FFD0D6' : '#FFFFFF', {
+      const label = text(this, img.x, baseY - 70 * scale, `${short(d.contact, 22)}\n${money(d.pending, d.currency, 0)}${d.daysOverdue > 0 ? ` · ⚠ ${d.daysOverdue} d` : ''}`, 22, d.daysOverdue > 0 ? '#FFD0D6' : '#FFFFFF', {
         strokeThickness: 5,
       })
         .setDepth(60)

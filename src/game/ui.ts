@@ -217,8 +217,8 @@ export function drawSky(scene: Phaser.Scene, top: number, bottom: number, w = W,
 }
 
 /**
- * Round music on/off button used on the title screen and in the HUD. It follows the setting,
- * so changing it anywhere (Settings, the M key) updates every copy.
+ * Round sound on/off button (music and effects) used on the title screen and in the HUD. It
+ * follows the setting, so changing it anywhere (Settings, the M key) updates every copy.
  */
 export function musicButton(scene: Phaser.Scene, x: number, y: number, onToggle: (on: boolean) => void) {
   const bg = scene.add.graphics();
@@ -233,12 +233,17 @@ export function musicButton(scene: Phaser.Scene, x: number, y: number, onToggle:
     const c = on ? 0xffffff : 0x8a82b0;
     icon.clear();
     icon.fillStyle(c, 1);
-    icon.lineStyle(5, c, 1);
-    icon.lineBetween(x - 9, y + 12, x - 9, y - 16);
-    icon.lineBetween(x + 13, y + 6, x + 13, y - 22);
-    icon.fillPoints([new Phaser.Math.Vector2(x - 11, y - 14), new Phaser.Math.Vector2(x + 15, y - 22), new Phaser.Math.Vector2(x + 15, y - 14), new Phaser.Math.Vector2(x - 11, y - 6)], true);
-    icon.fillEllipse(x - 15, y + 13, 16, 12);
-    icon.fillEllipse(x + 7, y + 7, 16, 12);
+    icon.fillRect(x - 20, y - 8, 10, 16);
+    icon.fillPoints([new Phaser.Math.Vector2(x - 10, y - 8), new Phaser.Math.Vector2(x + 4, y - 20), new Phaser.Math.Vector2(x + 4, y + 20), new Phaser.Math.Vector2(x - 10, y + 8)], true);
+    if (on) {
+      icon.lineStyle(4, c, 1);
+      icon.beginPath();
+      icon.arc(x + 6, y, 10, -0.8, 0.8);
+      icon.strokePath();
+      icon.beginPath();
+      icon.arc(x + 6, y, 18, -0.8, 0.8);
+      icon.strokePath();
+    }
     if (!on) {
       icon.lineStyle(6, 0xff4d5e, 1);
       icon.lineBetween(x - 24, y + 24, x + 24, y - 24);
