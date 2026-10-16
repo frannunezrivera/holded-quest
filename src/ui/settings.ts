@@ -5,6 +5,7 @@ import { forgetApiKey, loadApiKey, loadSettings, saveCachedSnapshot, saveSetting
 import type { PeriodId } from '../data/types';
 import { state } from '../game/state';
 import { fmtRelative, t } from '../i18n/i18n';
+import { setMusicEnabled } from '../audio/music';
 import { unlockAudio } from '../audio/sfx';
 import { h, openModal } from './overlay';
 
@@ -147,7 +148,7 @@ export function openSettings(opts: { focusKey?: boolean } = {}) {
         type: 'range', min: '0', max: '1', step: '0.05', value: String(s.volume), 'aria-label': t('settings.volume'),
         oninput: () => saveSettings({ volume: Number(volume.value) }),
       });
-      const music = h('input', { type: 'checkbox', checked: s.musicOn, onchange: () => saveSettings({ musicOn: music.checked }) });
+      const music = h('input', { type: 'checkbox', checked: s.music, onchange: () => setMusicEnabled(music.checked) });
       const mute = h('input', { type: 'checkbox', checked: s.muted, onchange: () => saveSettings({ muted: mute.checked }) });
 
       const prefs = h('section', { class: 'hq-section' },

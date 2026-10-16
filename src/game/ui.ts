@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { sfx } from '../audio/sfx';
+import { loadSettings } from '../data/store';
 
 export const W = 1920;
 export const H = 1080;
@@ -213,4 +214,44 @@ export function drawSky(scene: Phaser.Scene, top: number, bottom: number, w = W,
   g.fillGradientStyle(top, top, bottom, bottom, 1);
   g.fillRect(0, 0, w, h);
   return g;
+}
+
+/**
+ * Round music on/off button used on the title screen and in the HUD. It follows the setting,
+ * so changing it anywhere (Settings, the M key) updates every copy.
+ */
+export function musicButton(scene: Phaser.Scene, x: number, y: number, onToggle: (on: boolean) => void) {
+  const bg = scene.add.graphics();
+  bg.fillStyle(0x241a45, 0.88);
+  bg.fillRoundedRect(x - 38, y - 38, 76, 76, 24);
+  // Drawn rather than an emoji: emoji glyphs don't render reliably on every canvas.
+  const icon = scene.add.graphics();
+  const zone = scene.add.zone(x, y, 76, 76).setInteractive({ useHandCursor: true });
+  const isOn = () => loadSettings().music && !loadSettings().muted;
+  const render = () => {
+    const on = isOn();
+    const c = on ? 0xffffff : 0x8a82b0;
+    icon.clear();
+    icon.fillStyle(c, 1);
+    icon.lineStyle(5, c, 1);
+    icon.lineBetween(x - 9, y + 12, x - 9, y - 16);
+    icon.lineBetween(x + 13, y + 6, x + 13, y - 22);
+    icon.fillPoints([new Phaser.Math.Vector2(x - 11, y - 14), new Phaser.Math.Vector2(x + 15, y - 22), new Phaser.Math.Vector2(x + 15, y - 14), new Phaser.Math.Vector2(x - 11, y - 6)], true);
+    icon.fillEllipse(x - 15, y + 13, 16, 12);
+    icon.fillEllipse(x + 7, y + 7, 16, 12);
+    if (!on) {
+      icon.lineStyle(6, 0xff4d5e, 1);
+      icon.lineBetween(x - 24, y + 24, x + 24, y - 24);
+    }
+  };
+  zone.on('pointerdown', () => {
+    onToggle(!isOn());
+    sfx('select');
+  });
+  zone.on('pointerover', () => bg.setAlpha(1.15));
+  zone.on('pointerout', () => bg.setAlpha(1));
+  window.addEventListener('hq:settings', render);
+  scene.events.once('shutdown', () => window.removeEventListener('hq:settings', render));
+  render();
+  return { bg, icon, zone };
 }

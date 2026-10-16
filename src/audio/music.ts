@@ -1,5 +1,6 @@
 import { audioContext } from './sfx';
-import { loadSettings } from '../data/store';
+import { loadSettings, saveSettings } from '../data/store';
+import { unlockAudio } from './sfx';
 
 /**
  * A tiny chiptune step sequencer on WebAudio: bass, arpeggio, lead, pad and drums,
@@ -206,7 +207,7 @@ class Sequencer {
   applyVolume() {
     if (!this.master || !this.ctx) return;
     const s = loadSettings();
-    const v = s.muted || !s.musicOn ? 0 : 0.55 * s.volume;
+    const v = s.muted || !s.music ? 0 : 0.55 * s.volume;
     this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.08);
   }
 
@@ -368,3 +369,9 @@ class Sequencer {
 }
 
 export const music = new Sequencer();
+
+/** Turning music on also lifts "mute everything", otherwise the switch would seem broken. */
+export function setMusicEnabled(on: boolean) {
+  if (on) unlockAudio();
+  saveSettings(on ? { music: true, muted: false } : { music: false });
+}

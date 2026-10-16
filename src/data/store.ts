@@ -9,7 +9,8 @@ export interface Settings {
   period: PeriodId;
   volume: number; // 0..1
   muted: boolean;
-  musicOn: boolean;
+  /** Music starts off and only plays once the player turns it on (new key, so old saves don't carry 'on'). */
+  music: boolean;
   rememberKey: boolean;
   mode: 'demo' | 'holded' | null;
   lastRateLimit: RateLimitInfo | null;
@@ -24,7 +25,7 @@ const defaults = (): Settings => ({
   period: 'thisYear',
   volume: 0.7,
   muted: false,
-  musicOn: true,
+  music: false,
   rememberKey: false,
   mode: null,
   lastRateLimit: null,
