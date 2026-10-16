@@ -16,6 +16,7 @@ const ALLOWED_PATHS: RegExp[] = [
   /^\/v2\/purchases$/,
   /^\/v2\/payments$/,
   /^\/v2\/treasury\/accounts$/,
+  /^\/v2\/treasury\/accounts\/[A-Za-z0-9_-]{1,64}\/bank-movements$/,
   /^\/v2\/contacts$/,
   /^\/v2\/usage\/[a-z_]+$/,
 ];

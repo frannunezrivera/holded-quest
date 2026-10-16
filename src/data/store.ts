@@ -98,3 +98,29 @@ export async function saveCachedSnapshot(s: FinanceSnapshot | null) {
     /* ignore */
   }
 }
+
+// ---------- on-demand extras cache (bank movements, VAT quarter) ----------
+
+export interface CachedExtra<T> {
+  /** What the data was fetched for (period id, quarter start…); a mismatch means refetch. */
+  scope: string;
+  fetchedAt: string;
+  data: T;
+}
+
+export async function loadExtra<T>(name: 'cash' | 'vat'): Promise<CachedExtra<T> | null> {
+  try {
+    return ((await get(`hq.extra.${name}`)) as CachedExtra<T> | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveExtra<T>(name: 'cash' | 'vat', value: CachedExtra<T> | null) {
+  try {
+    if (value) await set(`hq.extra.${name}`, value);
+    else await del(`hq.extra.${name}`);
+  } catch {
+    /* ignore */
+  }
+}

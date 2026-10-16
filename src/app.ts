@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { HoldedError } from './data/holdedClient';
+import { loadCashSeries, loadVatQuarter } from './data/extras';
 import { buildDemoSnapshot, loadForStartup, refreshFromHolded } from './data/service';
 import { loadApiKey, loadSettings, saveApiKey, saveSettings, type Lang } from './data/store';
 import { openSettings } from './ui/settings';
@@ -16,7 +17,9 @@ export function initApp(g: Phaser.Game) {
   game = g;
 }
 
-const MINIGAMES = ['VaultRush', 'DebtDodge', 'BalloonCatch'];
+export type MinigameKey = 'VaultRush' | 'DebtDodge' | 'BalloonCatch' | 'CashRiver' | 'BossVat';
+
+const MINIGAMES: MinigameKey[] = ['VaultRush', 'DebtDodge', 'BalloonCatch', 'CashRiver', 'BossVat'];
 const OVERLAYS = ['Results', 'Pause'];
 
 /**
@@ -54,7 +57,7 @@ export function goToTitle() {
   });
 }
 
-export function startMinigame(key: 'VaultRush' | 'DebtDodge' | 'BalloonCatch') {
+export function startMinigame(key: MinigameKey) {
   afterStep(() => {
     if (!game) return;
     const sm = game.scene;
@@ -63,6 +66,27 @@ export function startMinigame(key: 'VaultRush' | 'DebtDodge' | 'BalloonCatch') {
     }
     sm.start(key);
   });
+}
+
+/**
+ * Loads what the river or the VAT boss needs before entering it. Returns false (after telling the
+ * player why) if it couldn't.
+ */
+export async function prepareExtra(kind: 'river' | 'boss'): Promise<boolean> {
+  const snap = state.snapshot;
+  if (!snap) return false;
+  if (kind === 'river' ? state.cash : state.vat) return true;
+  showLoading(t(kind === 'river' ? 'loading.river' : 'loading.vat'));
+  try {
+    if (kind === 'river') state.cash = await loadCashSeries(snap, (account) => showLoading(`${t('loading.river')} ${account}`));
+    else state.vat = await loadVatQuarter(snap);
+    return true;
+  } catch (err) {
+    toast(errorMessage(err), 4500);
+    return false;
+  } finally {
+    hideLoading();
+  }
 }
 
 export function playDemo() {

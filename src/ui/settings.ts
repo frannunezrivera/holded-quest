@@ -1,4 +1,5 @@
 import { changeLanguage, changePeriod, connectHolded, errorMessage, playDemo, refreshData, goToTitle } from '../app';
+import { clearExtras } from '../data/extras';
 import { testKey } from '../data/service';
 import { forgetApiKey, loadApiKey, loadSettings, saveCachedSnapshot, saveSettings } from '../data/store';
 import type { PeriodId } from '../data/types';
@@ -84,6 +85,7 @@ export function openSettings(opts: { focusKey?: boolean } = {}) {
               keyInput.value = '';
               // Real financial data must not outlive the key that downloaded it.
               await saveCachedSnapshot(null);
+              await clearExtras();
               if (state.snapshot?.source === 'holded') state.snapshot = null;
               saveSettings({ mode: s.mode === 'holded' ? null : s.mode });
               setStatus('🔒');

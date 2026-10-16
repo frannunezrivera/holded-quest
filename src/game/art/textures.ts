@@ -758,6 +758,221 @@ function drawStar(ctx: CanvasRenderingContext2D, w: number, h: number, points: n
   }
 }
 
+// ---------------------------------------------------------------- river & boss
+
+function drawRaft(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const logs = 5;
+  const lw = (w - 8) / logs;
+  for (let i = 0; i < logs; i++) {
+    rr(ctx, 4 + i * lw, 8, lw - 3, h - 14, 10);
+    ctx.fillStyle = linear(ctx, 0, 8, 0, h, [
+      [0, '#C98B52'],
+      [1, '#8B5A2B'],
+    ]);
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#5E3B1F';
+    ctx.stroke();
+    ellipse(ctx, 4 + i * lw + (lw - 3) / 2, 14, (lw - 8) / 2, 4);
+    ctx.fillStyle = '#E3B37F';
+    ctx.fill();
+  }
+  ctx.strokeStyle = '#E8D5B5';
+  ctx.lineWidth = 4;
+  for (const x of [w * 0.22, w * 0.78]) {
+    ctx.beginPath();
+    ctx.moveTo(x, 6);
+    ctx.lineTo(x, h - 6);
+    ctx.stroke();
+  }
+}
+
+function drawRock(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.beginPath();
+  ctx.moveTo(6, h - 6);
+  ctx.quadraticCurveTo(2, h * 0.45, w * 0.3, h * 0.2);
+  ctx.quadraticCurveTo(w * 0.5, 2, w * 0.72, h * 0.18);
+  ctx.quadraticCurveTo(w - 2, h * 0.4, w - 6, h - 6);
+  ctx.closePath();
+  ctx.fillStyle = radial(ctx, w * 0.4, h * 0.35, 4, w * 0.7, [
+    [0, '#B7B2C9'],
+    [0.6, '#7D7896'],
+    [1, '#4C4763'],
+  ]);
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#34304A';
+  ctx.stroke();
+  ellipse(ctx, w * 0.36, h * 0.34, w * 0.12, h * 0.06, -0.4);
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(52,48,74,0.6)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.55, h * 0.3);
+  ctx.lineTo(w * 0.62, h * 0.55);
+  ctx.lineTo(w * 0.52, h * 0.75);
+  ctx.stroke();
+}
+
+function drawBoss(ctx: CanvasRenderingContext2D, w: number, h: number, angry: boolean) {
+  const cx = w / 2;
+  // Arms
+  ctx.lineWidth = 20;
+  ctx.strokeStyle = angry ? '#9C1028' : '#5427A8';
+  for (const dir of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(cx + dir * 150, h * 0.5);
+    ctx.quadraticCurveTo(cx + dir * 205, h * 0.62, cx + dir * 190, h * 0.82);
+    ctx.stroke();
+    ellipse(ctx, cx + dir * 190, h * 0.84, 22, 22);
+    ctx.fillStyle = angry ? '#FF4D5E' : '#9B6BFF';
+    ctx.fill();
+  }
+  // Body: an overstuffed binder of tax forms
+  rr(ctx, cx - 160, 40, 320, h - 70, 46);
+  ctx.fillStyle = linear(ctx, 0, 40, 0, h, angry
+    ? [[0, '#FF6B7D'], [1, '#9C1028']]
+    : [[0, '#B48CFF'], [1, '#4A2296']]);
+  ctx.fill();
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = '#2B1B3D';
+  ctx.stroke();
+  // Paper sheets sticking out of the top
+  for (let i = 0; i < 6; i++) {
+    const x = cx - 130 + i * 50;
+    ctx.save();
+    ctx.translate(x, 46);
+    ctx.rotate((i - 2.5) * 0.12);
+    ctx.fillStyle = '#FFF8EC';
+    ctx.fillRect(-18, -34, 36, 40);
+    ctx.strokeStyle = '#B49C78';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-18, -34, 36, 40);
+    ctx.restore();
+  }
+  // Label plate
+  rr(ctx, cx - 92, h - 128, 184, 64, 16);
+  ctx.fillStyle = '#FFD54A';
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#B87A00';
+  ctx.stroke();
+  ctx.font = '700 46px Fredoka, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#3A2400';
+  ctx.fillText('IVA', cx, h - 94);
+  // Eyes
+  for (const dir of [-1, 1]) {
+    ellipse(ctx, cx + dir * 62, 130, 40, 44);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#2B1B3D';
+    ctx.stroke();
+    ellipse(ctx, cx + dir * 56, 138, 17, 20);
+    ctx.fillStyle = angry ? '#D02E45' : '#2B1B3D';
+    ctx.fill();
+    ellipse(ctx, cx + dir * 50, 130, 6, 6);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill();
+    // Brows
+    ctx.lineWidth = 12;
+    ctx.strokeStyle = '#2B1B3D';
+    ctx.beginPath();
+    ctx.moveTo(cx + dir * 104, angry ? 70 : 80);
+    ctx.lineTo(cx + dir * 24, angry ? 104 : 96);
+    ctx.stroke();
+  }
+  // Mouth with teeth
+  ctx.beginPath();
+  ctx.moveTo(cx - 92, 196);
+  ctx.quadraticCurveTo(cx, angry ? 280 : 262, cx + 92, 196);
+  ctx.closePath();
+  ctx.fillStyle = '#2B1B3D';
+  ctx.fill();
+  ctx.fillStyle = '#FFFFFF';
+  for (let i = 0; i < 6; i++) {
+    const x = cx - 78 + i * 31;
+    ctx.beginPath();
+    ctx.moveTo(x, 198);
+    ctx.lineTo(x + 14, 222);
+    ctx.lineTo(x + 28, 198);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawForm(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  rr(ctx, 3, 3, w - 6, h - 6, 5);
+  ctx.fillStyle = '#FFF8EC';
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#B49C78';
+  ctx.stroke();
+  ctx.fillStyle = '#D02E45';
+  ctx.fillRect(3, 3, w - 6, 14);
+  ctx.font = '700 15px Fredoka, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText('303', w / 2, 11);
+  ctx.strokeStyle = '#C9B89A';
+  ctx.lineWidth = 2;
+  for (let y = 26; y < h - 8; y += 8) {
+    ctx.beginPath();
+    ctx.moveTo(10, y);
+    ctx.lineTo(w - 10, y);
+    ctx.stroke();
+  }
+}
+
+function drawReceipt(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  ctx.beginPath();
+  ctx.moveTo(4, 4);
+  ctx.lineTo(w - 4, 4);
+  ctx.lineTo(w - 4, h - 10);
+  for (let x = w - 4; x > 4; x -= 8) ctx.lineTo(x - 4, x % 16 === 0 ? h - 4 : h - 12);
+  ctx.lineTo(4, h - 10);
+  ctx.closePath();
+  ctx.fillStyle = linear(ctx, 0, 0, 0, h, [
+    [0, PALETTE.goldLight],
+    [1, PALETTE.goldMid],
+  ]);
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = PALETTE.goldDark;
+  ctx.stroke();
+  euro(ctx, w / 2, h * 0.42, 26, PALETTE.goldDark);
+  ctx.strokeStyle = 'rgba(184,122,0,0.6)';
+  ctx.lineWidth = 2;
+  for (const y of [h * 0.66, h * 0.76]) {
+    ctx.beginPath();
+    ctx.moveTo(10, y);
+    ctx.lineTo(w - 10, y);
+    ctx.stroke();
+  }
+}
+
+function drawStamp(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  rr(ctx, w / 2 - 10, 4, 20, h * 0.45, 8);
+  ctx.fillStyle = '#6E4320';
+  ctx.fill();
+  ellipse(ctx, w / 2, 10, 16, 10);
+  ctx.fillStyle = '#8B5E3C';
+  ctx.fill();
+  rr(ctx, 6, h * 0.45, w - 12, h * 0.36, 8);
+  ctx.fillStyle = '#D02E45';
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#7A1020';
+  ctx.stroke();
+  rr(ctx, 2, h * 0.78, w - 4, h * 0.2, 6);
+  ctx.fillStyle = '#7A1020';
+  ctx.fill();
+}
+
 // ---------------------------------------------------------------- registry
 
 export function createTextures(scene: Phaser.Scene) {
@@ -1054,6 +1269,13 @@ export function createTextures(scene: Phaser.Scene) {
     c.quadraticCurveTo(32, 10, 42, 18);
     c.stroke();
   });
+  tex(scene, 'raft', 180, 54, drawRaft);
+  tex(scene, 'rock', 120, 88, drawRock);
+  tex(scene, 'boss', 440, 400, (c, w, h) => drawBoss(c, w, h, false));
+  tex(scene, 'boss-angry', 440, 400, (c, w, h) => drawBoss(c, w, h, true));
+  tex(scene, 'form', 56, 72, drawForm);
+  tex(scene, 'receipt', 56, 80, drawReceipt);
+  tex(scene, 'stamp', 76, 92, drawStamp);
   tex(scene, 'post', 26, 140, (c, w, h) => {
     rr(c, 2, 0, w - 4, h, 6);
     c.fillStyle = linear(c, 0, 0, w, 0, [[0, '#9A6A40'], [1, '#6E4320']]);

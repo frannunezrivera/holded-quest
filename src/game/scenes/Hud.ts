@@ -110,7 +110,7 @@ export class Hud extends Phaser.Scene {
     this.lastLevel = levelInfo(state.progress.xp).level;
     this.renderProgress(state.progress);
 
-    const hint = text(this, W / 2, H - 40, t('world.hint'), 24, '#FFFFFF', { strokeThickness: 5 });
+    const hint = text(this, W / 2, H - 40, t(this.sys.game.device.input.touch ? 'world.hint.touch' : 'world.hint'), 24, '#FFFFFF', { strokeThickness: 5 });
     this.tweens.add({ targets: hint, alpha: 0, delay: 9000, duration: 1500 });
 
     const onProgress = (p: Progress) => this.renderProgress(p);

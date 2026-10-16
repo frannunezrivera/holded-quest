@@ -1,5 +1,6 @@
 import type {
   HoldedAccountV2,
+  HoldedBankMovementV2,
   HoldedDocV2,
   HoldedPage,
   HoldedPaymentV2,
@@ -109,10 +110,10 @@ export class HoldedClient {
   }
 
   /** Follows `cursor` until `has_more` is false. Tolerates endpoints that return a bare array. */
-  async getAll<T>(path: string, params: Params = {}): Promise<T[]> {
+  async getAll<T>(path: string, params: Params = {}, maxPages = this.maxPages): Promise<T[]> {
     const out: T[] = [];
     let cursor: string | undefined;
-    for (let page = 0; page < this.maxPages; page++) {
+    for (let page = 0; page < maxPages; page++) {
       const body = await this.request<HoldedPage<T> | T[] | { data?: T[] }>(path, { ...params, limit: this.pageSize, cursor });
       if (Array.isArray(body)) {
         out.push(...body);
@@ -140,6 +141,20 @@ export class HoldedClient {
       ]);
       return [...pending, ...partial];
     }
+  }
+
+  /** Bank statement lines of one account; capped at a few pages to protect the monthly quota. */
+  getBankMovements(accountId: string, from: string, to: string): Promise<HoldedBankMovementV2[]> {
+    return this.getAll<HoldedBankMovementV2>(
+      `/v2/treasury/accounts/${encodeURIComponent(accountId)}/bank-movements`,
+      { start_date: from, end_date: to },
+      5,
+    );
+  }
+
+  /** Documents issued between two dates (inclusive). */
+  getDocsInRange(path: '/v2/invoices' | '/v2/purchases', from: string, to: string): Promise<HoldedDocV2[]> {
+    return this.getAll<HoldedDocV2>(path, { start_date: from, end_date: to });
   }
 
   /** Cheapest call that proves the key works: one invoice. */

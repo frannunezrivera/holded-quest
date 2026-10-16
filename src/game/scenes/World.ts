@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { goToTitle, startMinigame } from '../../app';
+import { goToTitle, prepareExtra, startMinigame, type MinigameKey } from '../../app';
 import { music } from '../../audio/music';
 import { sfx, unlockAudio } from '../../audio/sfx';
 import {
@@ -15,6 +15,7 @@ import {
 } from '../../data/aggregate';
 import type { SnapshotDiff } from '../../data/diff';
 import { mulberry32 } from '../../data/demoData';
+import { daysToDeadline, relevantQuarter } from '../../data/vat';
 import type { Doc, FinanceSnapshot, ResourceId, Stratum } from '../../data/types';
 import { locale, money, moneyShort, t, type MessageKey } from '../../i18n/i18n';
 import { openLedger } from '../../ui/ledger';
@@ -24,7 +25,7 @@ import { planeKey } from '../art/textures';
 import { birds, drawBackdrop } from '../backdrop';
 import { confetti, popText, rectZone, shockwave, sparkle } from '../fx';
 import { Hero } from '../hero';
-import { grant, state, touchVisit } from '../state';
+import { grant, setProgress, state, touchVisit } from '../state';
 import { Button, ButtonGroup, H, W, panel, skyColors, text } from '../ui';
 
 const WW = 6300;
@@ -89,6 +90,10 @@ export class World extends Phaser.Scene {
   private keys!: Record<'left' | 'right' | 'up' | 'a' | 'd' | 'w' | 'space', Phaser.Input.Keyboard.Key>;
   private jumpQueued = false;
   private planes: { img: Phaser.GameObjects.Image; a: number; speed: number; rx: number; ry: number }[] = [];
+  private arrows = new Map<ZoneId, Phaser.GameObjects.Text>();
+  private captionBox: Phaser.GameObjects.Container | null = null;
+  private touch = { left: false, right: false, jump: false };
+  private touchEnter: { box: Phaser.GameObjects.Container; zone: Phaser.GameObjects.Zone } | null = null;
   private summitY = { gold: GY, debt: GY };
 
   constructor() {
@@ -114,6 +119,10 @@ export class World extends Phaser.Scene {
     this.cinematic = false;
     this.starting = false;
     this.summitsCelebrated = new Set();
+    this.arrows = new Map();
+    this.captionBox = null;
+    this.touch = { left: false, right: false, jump: false };
+    this.touchEnter = null;
 
     this.physics.world.setBounds(0, 0, WW, H);
     this.cameras.main.setBounds(0, 0, WW, H);
@@ -138,13 +147,15 @@ export class World extends Phaser.Scene {
     this.buildPrompt();
     this.buildBubble();
     this.setupInput();
+    if (this.sys.game.device.input.touch) this.buildTouchControls();
 
     music.play('world');
     // After the HUD (started right after this scene) is listening for achievement toasts.
     this.time.delayedCall(1200, touchVisit);
 
     const diff = state.takeDiff();
-    if (diff) this.time.delayedCall(900, () => this.playSinceLastVisit(diff));
+    if (!state.progress.guideDone) this.time.delayedCall(800, () => this.playTour());
+    else if (diff) this.time.delayedCall(900, () => this.playSinceLastVisit(diff));
     else if (!state.welcomed) {
       this.time.delayedCall(700, () => this.banner(t('world.welcome', { company: this.snap.companyName }), []));
     }
@@ -187,7 +198,26 @@ export class World extends Phaser.Scene {
     if (locked) c.add(this.add.image(96, -90, 'lock').setScale(0.6));
     board.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.walkAndOpen(id, x));
     this.triggers.push({ id, x, y: GY - 120 });
+    this.addArrow(id, x, GY - 200);
     return c;
+  }
+
+  /** Bouncing arrow over zones the player has never entered. */
+  private addArrow(id: ZoneId, x: number, y: number) {
+    if (state.progress.enteredZones.includes(id)) return;
+    const a = text(this, x, y, '▼', 44, '#FFE45C', { strokeThickness: 7 }).setDepth(70);
+    this.tweens.add({ targets: a, y: y + 22, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    this.arrows.set(id, a);
+  }
+
+  private markEntered(id: ZoneId) {
+    const arrow = this.arrows.get(id);
+    if (arrow) {
+      this.arrows.delete(id);
+      this.tweens.killTweensOf(arrow);
+      this.tweens.add({ targets: arrow, scale: 1.8, alpha: 0, duration: 260, onComplete: () => arrow.destroy() });
+    }
+    if (!state.progress.enteredZones.includes(id)) setProgress({ ...state.progress, enteredZones: [...state.progress.enteredZones, id] });
   }
 
   private walkAndOpen(id: ZoneId, x: number) {
@@ -387,6 +417,21 @@ export class World extends Phaser.Scene {
     if (odAmount > 0) text(this, DEBT_X, top - 252, `⚠ ${money(odAmount, s.currency, 0)} ${t('stat.overdue')}`, 28, '#FFD0D6', { strokeThickness: 6 }).setDepth(-1);
     this.tweens.add({ targets: label, y: label.y - 8, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     this.sign(DEBT_X - DEBT_HALF - 110, t('zone.debt'), t('stat.docs', { n: s.owedToSuppliers.length }), 'debt', locked);
+    this.vatReminder(DEBT_X - DEBT_HALF - 110, GY - 270);
+  }
+
+  /** A pulsing sign when the quarter's VAT return (model 303) is due within ten days. */
+  private vatReminder(x: number, y: number) {
+    if (this.snap.locked.includes('invoices')) return;
+    const q = relevantQuarter(this.snap.today);
+    const n = daysToDeadline(q, this.snap.today);
+    if (!q.closed || n < 0 || n > 10) return;
+    const label = n === 0 ? t('world.vatToday', { q: q.quarter }) : t('world.vatSoon', { q: q.quarter, n });
+    const sign = text(this, x, y, label, 26, '#FFFFFF', { strokeThickness: 0, stroke: null, weight: 700 }).setDepth(-1);
+    const bg = this.add.graphics().setDepth(-2);
+    bg.fillStyle(0xd02e45, 1);
+    bg.fillRoundedRect(x - sign.width / 2 - 18, y - 28, sign.width + 36, 56, 20);
+    this.tweens.add({ targets: [sign, bg], alpha: 0.55, duration: 600, yoyo: true, repeat: -1 });
   }
 
   // ------------------------------------------------------------------ bank
@@ -408,6 +453,7 @@ export class World extends Phaser.Scene {
     text(this, BANK_X, GY - 452, t('zone.vault'), 28, '#FFE45C', { strokeThickness: 6 }).setDepth(-1);
     this.tweens.add({ targets: label, y: label.y - 8, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     this.triggers.push({ id: 'vault', x: BANK_X, y: GY - 120 });
+    this.addArrow('vault', BANK_X, GY - 300);
     if (cash === null) this.add.image(BANK_X + label.width / 2 + 40, GY - 500, 'lock').setScale(0.6).setDepth(-1);
   }
 
@@ -620,7 +666,8 @@ export class World extends Phaser.Scene {
     const cx = W / 2;
     const cy = H / 2;
     const dim = this.add.rectangle(cx, cy, W, H, 0x0d0820, 0.55).setInteractive();
-    const pw = 860;
+    // The vault and the debt peak offer two games plus the ledger, so their menu is wider.
+    const pw = id === 'vault' || id === 'debt' ? 1060 : 860;
     const ph = 600;
     const bg = panel(this, cx, cy, pw, ph);
     const title = text(this, cx, cy - 230, t(`zone.${id}` as MessageKey), 56, '#FFE45C', { strokeThickness: 9, weight: 700 });
@@ -652,35 +699,62 @@ export class World extends Phaser.Scene {
     const gameDesc = text(this, cx, cy + 30, t(`zone.game.${id}.desc` as MessageKey), 24, '#9A90C4', { stroke: null, wrap: pw - 120 });
 
     const close = () => this.closeZoneMenu();
-    const playKey = id === 'gold' ? 'VaultRush' : id === 'debt' ? 'DebtDodge' : id === 'harbor' ? 'BalloonCatch' : null;
-    const play = new Button(this, cx - 200, cy + 130, '▶ ' + t(`zone.game.${id}` as MessageKey), () => {
+    const launch = (key: MinigameKey, extra?: 'river' | 'boss') => async () => {
       if (this.starting) return;
-      if (playKey) {
-        this.starting = true;
-        this.cameras.main.fadeOut(300, 18, 12, 38);
-        this.time.delayedCall(300, () => startMinigame(playKey));
-      } else {
-        close();
-        openTrophies();
+      this.starting = true;
+      // The river and the boss need extra data, fetched only now (and cached) to spare API quota.
+      if (extra && !(await prepareExtra(extra))) {
+        this.starting = false;
+        return;
       }
-    }, { w: 380, h: 90, size: 28, color: 0xf5b700, textColor: '#3A2400' });
-    play.label.setStroke('#FFF3B0', 0);
+      this.cameras.main.fadeOut(300, 18, 12, 38);
+      this.time.delayedCall(300, () => startMinigame(key));
+    };
     const ledgerTab = id === 'gold' ? 'collected' : id === 'harbor' ? 'receivables' : id === 'debt' ? 'payables' : 'bank';
-    const explore = new Button(this, cx + 200, cy + 130, '📒 ' + t('zone.explore'), () => {
-      close();
-      openLedger(ledgerTab);
-    }, { w: 360, h: 90, size: 28, color: 0x2ec4b6 });
+    const explore = { label: '📒 ' + t('zone.explore'), color: 0x2ec4b6, run: () => (close(), openLedger(ledgerTab)), enabled: true };
+    const gold = (label: string, run: () => void, enabled = true) => ({ label, color: 0xf5b700, dark: true, run, enabled });
+    const actions: { label: string; color: number; dark?: boolean; run: () => void; enabled: boolean }[] =
+      id === 'gold'
+        ? [gold('▶ ' + t('zone.game.gold'), launch('VaultRush'), !locked), explore]
+        : id === 'harbor'
+          ? [gold('▶ ' + t('zone.game.harbor'), launch('BalloonCatch'), !locked), explore]
+          : id === 'debt'
+            ? [
+                gold('▶ ' + t('zone.game.debt'), launch('DebtDodge'), !locked),
+                { label: '⚔ ' + t('zone.game.boss'), color: 0xd02e45, run: launch('BossVat', 'boss'), enabled: !s.locked.includes('invoices') },
+                explore,
+              ]
+            : [
+                gold('🌊 ' + t('zone.game.river'), launch('CashRiver', 'river')),
+                { label: '🏆 ' + t('zone.game.vault'), color: 0x7c4dff, run: () => (close(), openTrophies()), enabled: true },
+                explore,
+              ];
+    const bw = actions.length === 3 ? 310 : 380;
+    const gap = 22;
+    const total = actions.length * bw + (actions.length - 1) * gap;
+    const buttons = actions.map((a, i) => {
+      const b = new Button(this, cx - total / 2 + bw / 2 + i * (bw + gap), cy + 130, a.label, a.run, {
+        w: bw,
+        h: 90,
+        size: actions.length === 3 ? 25 : 28,
+        color: a.color,
+        textColor: a.dark ? '#3A2400' : '#FFFFFF',
+      });
+      if (a.dark) b.label.setStroke('#FFF3B0', 0);
+      if (!a.enabled) {
+        b.enabled = false;
+        b.setAlpha(0.4);
+      }
+      return b;
+    });
     const closeBtn = new Button(this, cx, cy + 240, t('zone.close'), close, { w: 260, h: 70, size: 26, color: 0x4b3d80 });
-    if (locked && id !== 'vault') {
-      play.enabled = false;
-      play.setAlpha(0.4);
-    }
-    this.menu = this.add.container(0, 0, [dim, bg, title, sub, valueText, detailText, gameDesc, play, explore, closeBtn]).setScrollFactor(0).setDepth(1000);
+    this.menu = this.add.container(0, 0, [dim, bg, title, sub, valueText, detailText, gameDesc, ...buttons, closeBtn]).setScrollFactor(0).setDepth(1000);
     this.menu.list.forEach((o) => (o as unknown as Phaser.GameObjects.Components.ScrollFactor).setScrollFactor?.(0));
     this.menu.setAlpha(0).setY(30);
     this.tweens.add({ targets: this.menu, alpha: 1, y: 0, duration: 220, ease: 'Back.out' });
-    this.menuGroup = new ButtonGroup(this, [play, explore, closeBtn], true);
-    this.menuGroup.focus(play.enabled ? 0 : 1);
+    this.menuGroup = new ButtonGroup(this, [...buttons, closeBtn], true);
+    this.menuGroup.focus(Math.max(0, buttons.findIndex((b) => b.enabled)));
+    this.markEntered(id);
     sfx('open');
   }
 
@@ -717,6 +791,95 @@ export class World extends Phaser.Scene {
     sfx('fanfare');
   }
 
+  /**
+   * Camera tour over a list of stops, optionally with a caption at each one. Any key or tap skips
+   * it: remaining stops are cancelled and the camera goes back to following the hero.
+   */
+  private runCinematic(stops: { x: number; title?: string; body?: string; onArrive?: () => void; dwell?: number }[], onDone?: () => void) {
+    this.cinematic = true;
+    this.hero.frozen = true;
+    const cam = this.cameras.main;
+    cam.stopFollow();
+    const timers: Phaser.Time.TimerEvent[] = [];
+    let delay = 0;
+    for (const stop of stops) {
+      timers.push(
+        this.time.delayedCall(delay, () => {
+          if (!this.cinematic) return;
+          cam.pan(stop.x, H / 2, 900, Phaser.Math.Easing.Sine.InOut, true);
+          if (stop.title) this.caption(stop.title, stop.body ?? '');
+          timers.push(this.time.delayedCall(900, () => this.cinematic && stop.onArrive?.()));
+        }),
+      );
+      delay += 900 + (stop.dwell ?? 1700);
+    }
+    const kb = this.input.keyboard;
+    const finish = () => {
+      if (!this.cinematic) return;
+      this.cinematic = false;
+      this.hero.frozen = false;
+      for (const tm of timers) tm.remove();
+      kb?.off('keydown', finish);
+      this.input.off('pointerdown', finish);
+      this.hideCaption();
+      cam.panEffect.reset();
+      cam.pan(this.hero.sprite.x, H / 2, 600, Phaser.Math.Easing.Sine.InOut, true, (_c: Phaser.Cameras.Scene2D.Camera, p: number) => {
+        if (p >= 1) cam.startFollow(this.hero.sprite, true, 0.09, 0.09, 0, 120);
+      });
+      onDone?.();
+    };
+    timers.push(this.time.delayedCall(delay + 200, finish));
+    kb?.once('keydown', finish);
+    this.input.once('pointerdown', finish);
+  }
+
+  private caption(title: string, body: string) {
+    this.hideCaption(true);
+    const c = this.add.container(W / 2, H + 20).setScrollFactor(0).setDepth(900);
+    const w = 1080;
+    const h = 190;
+    const g = this.add.graphics();
+    g.fillStyle(0x0d0820, 0.4);
+    g.fillRoundedRect(-w / 2, 6, w, h, 30);
+    g.fillStyle(0x2a2056, 0.96);
+    g.fillRoundedRect(-w / 2, 0, w, h, 30);
+    g.lineStyle(4, 0xffd54a, 0.9);
+    g.strokeRoundedRect(-w / 2, 0, w, h, 30);
+    c.add(g);
+    c.add(text(this, 0, 46, title, 38, '#FFE45C', { strokeThickness: 7, weight: 700 }));
+    c.add(text(this, 0, 104, body, 26, '#FFFFFF', { stroke: null, wrap: w - 80 }));
+    c.add(text(this, 0, 160, t('tour.skip'), 18, '#9A90C4', { stroke: null, shadow: false }));
+    c.list.forEach((o) => (o as unknown as Phaser.GameObjects.Components.ScrollFactor).setScrollFactor?.(0));
+    this.tweens.add({ targets: c, y: H - h - 70, duration: 380, ease: 'Back.out' });
+    this.captionBox = c;
+    sfx('open');
+  }
+
+  private hideCaption(instant = false) {
+    const c = this.captionBox;
+    if (!c) return;
+    this.captionBox = null;
+    if (instant) c.destroy();
+    else this.tweens.add({ targets: c, y: H + 40, duration: 300, ease: 'Back.in', onComplete: () => c.destroy() });
+  }
+
+  /** First visit: a guided camera tour of the four zones. */
+  private playTour() {
+    const touch = this.sys.game.device.input.touch;
+    const harborX = (DOCK_FROM + DOCK_TO) / 2;
+    this.runCinematic(
+      [
+        { x: this.hero.sprite.x, title: t('world.welcome', { company: this.snap.companyName }), body: t('title.tagline'), dwell: 1500 },
+        { x: GOLD_X, title: t('zone.gold'), body: t('tour.gold.body'), dwell: 2600, onArrive: () => sparkle(this, GOLD_X, this.summitY.gold - 60, 24) },
+        { x: BANK_X, title: t('zone.vault'), body: t('tour.vault.body'), dwell: 2400 },
+        { x: harborX, title: t('zone.harbor'), body: t('tour.harbor.body'), dwell: 2400 },
+        { x: DEBT_X, title: t('zone.debt'), body: t('tour.debt.body'), dwell: 2400 },
+        { x: this.hero.sprite.x, title: t('tour.end.title'), body: t(touch ? 'tour.end.body.touch' : 'tour.end.body'), dwell: 2200 },
+      ],
+      () => setProgress({ ...state.progress, guideDone: true }),
+    );
+  }
+
   private playSinceLastVisit(d: SnapshotDiff) {
     const s = this.snap;
     const lines: string[] = [];
@@ -728,15 +891,12 @@ export class World extends Phaser.Scene {
     if (d.newReceivables.length) lines.push('🧾 ' + t('world.since.newReceivables', { n: d.newReceivables.length }));
     this.banner(t('world.since'), lines);
 
-    this.cinematic = true;
-    this.hero.frozen = true;
-    const cam = this.cameras.main;
-    cam.stopFollow();
-    const steps: (() => void)[] = [];
+    const stops: { x: number; onArrive: () => void; dwell: number }[] = [];
     if (d.newCollected.length) {
-      steps.push(() => {
-        cam.pan(GOLD_X, H / 2, 900, Phaser.Math.Easing.Sine.InOut);
-        this.time.delayedCall(900, () => {
+      stops.push({
+        x: GOLD_X,
+        dwell: 1700,
+        onArrive: () => {
           for (let i = 0; i < Math.min(40, 8 + d.newCollected.length * 4); i++) {
             this.time.delayedCall(i * 60, () => {
               const coin = this.add.image(GOLD_X - 500 + Math.random() * 1000, -40, 'coin').setDepth(30);
@@ -745,13 +905,14 @@ export class World extends Phaser.Scene {
             });
           }
           popText(this, GOLD_X, this.summitY.gold - 220, '+' + money(collected, s.currency, 0), '#FFE45C', 64, { duration: 2000 });
-        });
+        },
       });
     }
     if (d.clearedDebts.length || d.newDebts.length) {
-      steps.push(() => {
-        cam.pan(DEBT_X, H / 2, 900, Phaser.Math.Easing.Sine.InOut);
-        this.time.delayedCall(900, () => {
+      stops.push({
+        x: DEBT_X,
+        dwell: 1700,
+        onArrive: () => {
           if (d.clearedDebts.length) {
             confetti(this, DEBT_X, this.summitY.debt - 100, 80);
             sfx('paid');
@@ -762,41 +923,63 @@ export class World extends Phaser.Scene {
             sfx('whoosh');
             this.tweens.add({ targets: p, x: DEBT_X, y: this.summitY.debt - 120, duration: 1200, ease: 'Cubic.out', onComplete: () => this.tweens.add({ targets: p, alpha: 0, duration: 600, onComplete: () => p.destroy() }) });
           }
-        });
+        },
       });
     }
     if (d.clearedReceivables.length || d.newReceivables.length) {
-      steps.push(() => {
-        cam.pan((DOCK_FROM + DOCK_TO) / 2, H / 2, 900, Phaser.Math.Easing.Sine.InOut);
-        this.time.delayedCall(900, () => {
-          sparkle(this, (DOCK_FROM + DOCK_TO) / 2, 500, 30);
+      const hx = (DOCK_FROM + DOCK_TO) / 2;
+      stops.push({
+        x: hx,
+        dwell: 1700,
+        onArrive: () => {
+          sparkle(this, hx, 500, 30);
           if (d.clearedReceivables.length) {
             sfx('coinBig');
-            popText(this, (DOCK_FROM + DOCK_TO) / 2, 420, '+' + money(sum(d.clearedReceivables, (x) => x.pending), s.currency, 0), '#9CF6EA', 60, { duration: 2000 });
+            popText(this, hx, 420, '+' + money(sum(d.clearedReceivables, (x) => x.pending), s.currency, 0), '#9CF6EA', 60, { duration: 2000 });
           }
-        });
+        },
       });
     }
-    let delay = 0;
-    const timers: Phaser.Time.TimerEvent[] = [];
-    for (const step of steps) {
-      timers.push(this.time.delayedCall(delay, () => this.cinematic && step()));
-      delay += 2600;
-    }
-    const finish = () => {
-      if (!this.cinematic) return;
-      this.cinematic = false;
-      this.hero.frozen = false;
-      // A skip must cancel the remaining stops and interrupt any pan in progress.
-      for (const tm of timers) tm.remove();
-      cam.panEffect.reset();
-      cam.pan(this.hero.sprite.x, H / 2, 600, Phaser.Math.Easing.Sine.InOut, true, (_c: Phaser.Cameras.Scene2D.Camera, p: number) => {
-        if (p >= 1) cam.startFollow(this.hero.sprite, true, 0.09, 0.09, 0, 120);
+    this.runCinematic(stops);
+  }
+
+  // ------------------------------------------------------------------ touch controls
+
+  /** On-screen buttons for phones and tablets: walk left/right, jump and enter. */
+  private buildTouchControls() {
+    this.input.addPointer(2);
+    const make = (x: number, y: number, r: number, label: string, onDown: () => void, onUp: () => void) => {
+      const g = this.add.graphics();
+      g.fillStyle(0x0d0820, 0.35);
+      g.fillCircle(0, 6, r);
+      g.fillStyle(0x241a45, 0.78);
+      g.fillCircle(0, 0, r);
+      g.lineStyle(4, 0xffffff, 0.35);
+      g.strokeCircle(0, 0, r);
+      const box = this.add.container(x, y, [g, text(this, 0, -2, label, Math.round(r * 0.75), '#FFFFFF', { stroke: null })]).setScrollFactor(0).setDepth(950);
+      box.list.forEach((o) => (o as unknown as Phaser.GameObjects.Components.ScrollFactor).setScrollFactor?.(0));
+      const zone = this.add.zone(x, y, r * 2.3, r * 2.3).setScrollFactor(0).setDepth(951).setInteractive();
+      const release = () => {
+        onUp();
+        box.setScale(1);
+      };
+      zone.on('pointerdown', () => {
+        unlockAudio();
+        onDown();
+        box.setScale(0.9);
       });
+      zone.on('pointerup', release);
+      zone.on('pointerout', release);
+      return { box, zone };
     };
-    timers.push(this.time.delayedCall(delay + 200, finish));
-    this.input.keyboard?.once('keydown', finish);
-    this.input.once('pointerdown', finish);
+    make(140, H - 150, 80, '◀', () => (this.touch.left = true), () => (this.touch.left = false));
+    make(340, H - 150, 80, '▶', () => (this.touch.right = true), () => (this.touch.right = false));
+    make(W - 170, H - 175, 100, '⤒', () => ((this.touch.jump = true), (this.jumpQueued = true)), () => (this.touch.jump = false));
+    this.touchEnter = make(W - 400, H - 130, 68, 'E', () => {
+      if (this.nearTrigger && !this.menu && !this.cinematic) this.openZoneMenu(this.nearTrigger.id);
+    }, () => {});
+    this.touchEnter.box.setVisible(false);
+    this.touchEnter.zone.disableInteractive();
   }
 
   // ------------------------------------------------------------------ loop
@@ -809,10 +992,10 @@ export class World extends Phaser.Scene {
     const input = blocked
       ? { left: false, right: false, jumpPressed: false, jumpHeld: false }
       : {
-          left: k.left.isDown || k.a.isDown,
-          right: k.right.isDown || k.d.isDown,
+          left: k.left.isDown || k.a.isDown || this.touch.left,
+          right: k.right.isDown || k.d.isDown || this.touch.right,
           jumpPressed: this.jumpQueued,
-          jumpHeld: k.space.isDown || k.up.isDown || k.w.isDown,
+          jumpHeld: k.space.isDown || k.up.isDown || k.w.isDown || this.touch.jump,
         };
     this.jumpQueued = false;
     this.hero.update(dt, input);
@@ -825,6 +1008,14 @@ export class World extends Phaser.Scene {
     this.nearTrigger = near;
     if (near && !this.menu && !this.cinematic) this.showPrompt(near.x, near.y - 90, `E · ${t('zone.enter')}`);
     else if (this.prompt.visible) this.prompt.setVisible(false);
+    if (this.touchEnter) {
+      const show = !!near && !this.menu && !this.cinematic;
+      if (show !== this.touchEnter.box.visible) {
+        this.touchEnter.box.setVisible(show);
+        if (show) this.touchEnter.zone.setInteractive();
+        else this.touchEnter.zone.disableInteractive();
+      }
+    }
     if (this.pendingOpen && this.hero.target === null && near?.id === this.pendingOpen) this.openZoneMenu(this.pendingOpen);
 
     // Standing on a stratum?
