@@ -52,4 +52,12 @@ describe('runs', () => {
     expect(progress.achievements).toEqual(['climber']);
     expect(unlock(progress, ['climber']).unlocked).toEqual([]);
   });
+
+  it('rewards finishing the river and beating the VAT boss', () => {
+    const river = applyRun(emptyProgress(), { game: 'river', score: 2500, extra: { finished: true } });
+    expect(river.unlocked).toEqual(['river']);
+    const boss = applyRun(emptyProgress(), { game: 'boss', score: 1800, ratio: 1, extra: { won: true } });
+    expect(boss.unlocked).toEqual(['boss', 'deductions']);
+    expect(boss.progress.bests.boss).toBe(1800);
+  });
 });

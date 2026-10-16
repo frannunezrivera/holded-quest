@@ -12,8 +12,11 @@ export interface HoldedDocV2 {
   currency?: string | null;
   status?: string | null; // pending | partial | completed | cancelled | failed
   approval_status?: string | null; // draft | approved
+  draft?: boolean | number | null; // purchases expose drafts this way
   payments_total?: string | number | null;
   payments_pending?: string | number | null;
+  subtotal?: string | number | null;
+  tax?: string | number | null;
 }
 
 export interface HoldedPaymentV2 {
@@ -25,7 +28,8 @@ export interface HoldedPaymentV2 {
   description?: string | null;
   date?: string | null;
   status?: string | null;
-  document_type?: string | null; // invoice | purchase | creditnote | ...
+  document_type?: string | null; // invoice | purchase | creditnote | payroll | ...
+  type?: string | null; // 'collection' (money in) | 'payment' (money out)
   document_id?: string | null;
 }
 
@@ -36,6 +40,18 @@ export interface HoldedAccountV2 {
   currency?: string | null;
   balance?: string | number | null;
   archived?: boolean | null;
+}
+
+/** A line of a bank statement (GET /v2/treasury/accounts/{id}/bank-movements). */
+export interface HoldedBankMovementV2 {
+  id: string;
+  amount?: string | number | null;
+  balance?: string | number | null;
+  value_date?: string | null;
+  date?: string | null;
+  description?: string | null;
+  concept?: string | null;
+  status?: string | null;
 }
 
 export interface HoldedPage<T> {
@@ -136,4 +152,55 @@ export interface ContactTotal {
   name: string;
   total: number;
   count: number;
+}
+
+// ---------- On-demand extras (loaded only when the river or the VAT boss is opened) ----------
+
+export interface CashPoint {
+  date: string;
+  balance: number;
+}
+
+export interface CashEvent {
+  date: string;
+  amount: number; // signed: + money in, − money out
+  label: string;
+}
+
+export interface CashSeries {
+  /** 'bank' = real bank movements; 'estimated' = rebuilt from collections and supplier payments. */
+  source: 'bank' | 'estimated';
+  currency: string;
+  /** Whether the curve is anchored to the real current bank balance. */
+  anchored: boolean;
+  points: CashPoint[]; // one per day, oldest first
+  events: CashEvent[]; // the biggest movements, oldest first
+}
+
+export interface VatDoc {
+  id: string;
+  number: string;
+  contact: string;
+  date: string;
+  base: number;
+  tax: number;
+}
+
+export interface VatQuarter {
+  year: number;
+  quarter: 1 | 2 | 3 | 4;
+  from: string;
+  to: string;
+  /** Last day to file (Spain, model 303). */
+  deadline: string;
+  /** True when the quarter is over and we are inside its filing window. */
+  closed: boolean;
+  output: number; // IVA repercutido (sales)
+  input: number; // IVA soportado (purchases)
+  net: number; // output − input: > 0 to pay, < 0 to offset/refund
+  sales: VatDoc[];
+  purchases: VatDoc[];
+  currency: string;
+  /** The key cannot read purchases, so `input` is unknown (shown as 0). */
+  inputUnknown: boolean;
 }

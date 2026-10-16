@@ -10,6 +10,8 @@ import { initApp } from './app';
 import { unlockAudio } from './audio/sfx';
 import { loadSettings } from './data/store';
 import { BalloonCatch } from './game/scenes/BalloonCatch';
+import { BossVat } from './game/scenes/BossVat';
+import { CashRiver } from './game/scenes/CashRiver';
 import { Boot } from './game/scenes/Boot';
 import { DebtDodge } from './game/scenes/DebtDodge';
 import { Hud } from './game/scenes/Hud';
@@ -37,8 +39,8 @@ async function start() {
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     physics: { default: 'arcade', arcade: { gravity: { x: 0, y: 2300 }, debug: false } },
     audio: { noAudio: true },
-    input: { activePointers: 2 },
-    scene: [Boot, Title, World, Hud, VaultRush, DebtDodge, BalloonCatch, Results, Pause],
+    input: { activePointers: 3 },
+    scene: [Boot, Title, World, Hud, VaultRush, DebtDodge, BalloonCatch, CashRiver, BossVat, Results, Pause],
   });
   document.body.append(h('div', { class: 'hq-rotate', role: 'note' }, h('span', { class: 'icon', 'aria-hidden': 'true' }, '📱'), t('ui.rotate')));
   bindGame(game);

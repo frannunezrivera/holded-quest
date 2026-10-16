@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { goToWorld, startMinigame } from '../../app';
+import { goToWorld, startMinigame, type MinigameKey } from '../../app';
 import { sfx } from '../../audio/sfx';
 import { t, type MessageKey } from '../../i18n/i18n';
 import { countUp, confetti, sparkle } from '../fx';
@@ -9,7 +9,7 @@ import { Button, ButtonGroup, H, W, panel, text } from '../ui';
 
 export interface ResultsData {
   run: RunResult;
-  scene: 'VaultRush' | 'DebtDodge' | 'BalloonCatch';
+  scene: MinigameKey;
   headline: string; // e.g. "¡Tiempo!"
   scoreLabel: string;
   formatScore: (n: number) => string;
@@ -42,9 +42,12 @@ export class Results extends Phaser.Scene {
     countUp(this, score, data.run.score, data.formatScore, 1100, 300);
     this.time.delayedCall(300, () => sfx('coinBig'));
 
-    container.add(text(this, W / 2, cy - ph / 2 + 270, data.summary, 28, '#FFFFFF', { stroke: null, wrap: pw - 120 }));
+    // Summaries can span several lines (the VAT one does): everything below flows after it.
+    const summaryLines = data.summary.split('\n').length;
+    const summary = text(this, W / 2, cy - ph / 2 + 250, data.summary, summaryLines > 2 ? 24 : 28, '#FFFFFF', { stroke: null, wrap: pw - 120 }).setOrigin(0.5, 0);
+    container.add(summary);
 
-    let y = cy - ph / 2 + 330;
+    let y = Math.max(cy - ph / 2 + 330, summary.y + summary.height + 30);
     if (outcome.newBest && data.run.score > 0) {
       const nb = text(this, W / 2 + 330, cy - ph / 2 + 200, t('results.newBest'), 30, '#FF6B9A', { strokeThickness: 6, weight: 700 }).setAngle(-8);
       container.add(nb);
@@ -96,7 +99,8 @@ export class Results extends Phaser.Scene {
       y += 10;
       container.add(text(this, W / 2, y, data.listTitle ?? '', 26, '#FFB3C0', { stroke: null, weight: 600 }));
       y += 44;
-      for (const [left, right] of data.list.slice(0, 5)) {
+      const room = Math.max(1, Math.floor((cy + ph / 2 - 140 - y) / 46));
+      for (const [left, right] of data.list.slice(0, Math.min(5, room))) {
         const row = this.add.graphics();
         row.fillStyle(0xffffff, 0.06);
         row.fillRoundedRect(W / 2 - 440, y - 20, 880, 40, 14);

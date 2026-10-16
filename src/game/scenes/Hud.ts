@@ -1,20 +1,19 @@
 import Phaser from 'phaser';
+import { setSoundEnabled, soundOn } from '../../audio/music';
 import { sfx } from '../../audio/sfx';
 import { overdue, sum, totalCash, totalCollected, totalOwedByClients, totalOwedToSuppliers } from '../../data/aggregate';
-import { loadSettings, saveSettings } from '../../data/store';
 import { fmtDate, moneyShort, t, type MessageKey } from '../../i18n/i18n';
 import { openLedger, type LedgerTab } from '../../ui/ledger';
 import { openSettings } from '../../ui/settings';
 import { levelInfo, type AchievementId, type Progress } from '../progress';
 import { state } from '../state';
-import { H, W, text } from '../ui';
+import { H, W, musicButton, text } from '../ui';
 
 /** Always-on overlay above the world: money stats, level, streak and quick buttons. */
 export class Hud extends Phaser.Scene {
   private xpBar!: Phaser.GameObjects.Graphics;
   private levelText!: Phaser.GameObjects.Text;
   private streakText!: Phaser.GameObjects.Text;
-  private muteText!: Phaser.GameObjects.Text;
   private lastLevel = 1;
   private toastY = 150;
 
@@ -103,37 +102,27 @@ export class Hud extends Phaser.Scene {
       zone.on('pointerout', () => tx.setScale(1));
       return tx;
     };
-    this.muteText = btn(rx - 216, loadSettings().muted ? '🔇' : '🔊', () => this.toggleMute());
+    musicButton(this, rx - 216, 68, setSoundEnabled);
     btn(rx - 130, '📒', () => openLedger('collected'));
     btn(rx - 44, '⚙️', () => openSettings());
 
     this.lastLevel = levelInfo(state.progress.xp).level;
     this.renderProgress(state.progress);
 
-    const hint = text(this, W / 2, H - 40, t('world.hint'), 24, '#FFFFFF', { strokeThickness: 5 });
+    const hint = text(this, W / 2, H - 40, t(this.sys.game.device.input.touch ? 'world.hint.touch' : 'world.hint'), 24, '#FFFFFF', { strokeThickness: 5 });
     this.tweens.add({ targets: hint, alpha: 0, delay: 9000, duration: 1500 });
 
     const onProgress = (p: Progress) => this.renderProgress(p);
     const onAch = (id: AchievementId) => this.achievementToast(id);
-    const onMute = () => this.toggleMute();
-    const onSettings = () => this.muteText.setText(loadSettings().muted ? '🔇' : '🔊');
-    window.addEventListener('hq:settings', onSettings);
+    const onMute = () => setSoundEnabled(!soundOn());
     state.events.on('progress', onProgress);
     state.events.on('achievement', onAch);
     this.scene.get('World')?.events.on('toggle-mute', onMute);
     this.events.once('shutdown', () => {
-      window.removeEventListener('hq:settings', onSettings);
       state.events.off('progress', onProgress);
       state.events.off('achievement', onAch);
       this.scene.get('World')?.events.off('toggle-mute', onMute);
     });
-  }
-
-  private toggleMute() {
-    const muted = !loadSettings().muted;
-    saveSettings({ muted });
-    this.muteText.setText(muted ? '🔇' : '🔊');
-    if (!muted) sfx('select');
   }
 
   private renderProgress(p: Progress) {

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { HoldedError } from './data/holdedClient';
+import { loadCashSeries, loadVatQuarter } from './data/extras';
 import { buildDemoSnapshot, loadForStartup, refreshFromHolded } from './data/service';
 import { loadApiKey, loadSettings, saveApiKey, saveSettings, type Lang } from './data/store';
 import { openSettings } from './ui/settings';
@@ -16,7 +17,9 @@ export function initApp(g: Phaser.Game) {
   game = g;
 }
 
-const MINIGAMES = ['VaultRush', 'DebtDodge', 'BalloonCatch'];
+export type MinigameKey = 'VaultRush' | 'DebtDodge' | 'BalloonCatch' | 'CashRiver' | 'BossVat';
+
+const MINIGAMES: MinigameKey[] = ['VaultRush', 'DebtDodge', 'BalloonCatch', 'CashRiver', 'BossVat'];
 const OVERLAYS = ['Results', 'Pause'];
 
 /**
@@ -54,7 +57,7 @@ export function goToTitle() {
   });
 }
 
-export function startMinigame(key: 'VaultRush' | 'DebtDodge' | 'BalloonCatch') {
+export function startMinigame(key: MinigameKey) {
   afterStep(() => {
     if (!game) return;
     const sm = game.scene;
@@ -63,6 +66,27 @@ export function startMinigame(key: 'VaultRush' | 'DebtDodge' | 'BalloonCatch') {
     }
     sm.start(key);
   });
+}
+
+/**
+ * Loads what the river or the VAT boss needs before entering it. Returns false (after telling the
+ * player why) if it couldn't.
+ */
+export async function prepareExtra(kind: 'river' | 'boss'): Promise<boolean> {
+  const snap = state.snapshot;
+  if (!snap) return false;
+  if (kind === 'river' ? state.cash : state.vat) return true;
+  showLoading(t(kind === 'river' ? 'loading.river' : 'loading.vat'));
+  try {
+    if (kind === 'river') state.cash = await loadCashSeries(snap, (account) => showLoading(`${t('loading.river')} ${account}`));
+    else state.vat = await loadVatQuarter(snap);
+    return true;
+  } catch (err) {
+    toast(errorMessage(err), 4500);
+    return false;
+  } finally {
+    hideLoading();
+  }
 }
 
 export function playDemo() {
@@ -80,7 +104,12 @@ export function errorMessage(err: unknown): string {
   return t('settings.err.generic', { status: (err as Error)?.message ?? '?' });
 }
 
-const progressLabel = (step: string) => t(`loading.${step}` as MessageKey) || t('loading.generic');
+const progressLabel = (step: string) => t(`loading.${step}` as MessageKey) || funnyLoading();
+
+/** Generic waits get a joke instead of "Loading…". */
+function funnyLoading() {
+  return t(`loading.joke${1 + Math.floor(Math.random() * 5)}` as MessageKey);
+}
 
 /**
  * Downloads everything with the new key and only then saves it, so a typo never replaces a
@@ -90,7 +119,7 @@ export async function connectHolded(key: string, remember: boolean) {
   const clean = key.trim();
   // A different key may be a different company: don't diff against the old cache.
   const sameKey = loadApiKey() === clean;
-  showLoading(t('loading.generic'));
+  showLoading(funnyLoading());
   try {
     const { snapshot, diff } = await refreshFromHolded(clean, loadSettings().period, (s) => showLoading(progressLabel(s)), sameKey);
     saveApiKey(clean, remember);
@@ -116,7 +145,7 @@ export async function refreshData(): Promise<boolean> {
     openSettings({ focusKey: true });
     return false;
   }
-  showLoading(t('loading.generic'));
+  showLoading(funnyLoading());
   try {
     const { snapshot, diff } = await refreshFromHolded(key, s.period, (step) => showLoading(progressLabel(step)));
     setSnapshot(snapshot, diff);
@@ -155,7 +184,7 @@ export async function boot(): Promise<boolean> {
   const s = loadSettings();
   if (!s.mode) return false;
   try {
-    if (s.mode === 'holded') showLoading(t('loading.generic'));
+    if (s.mode === 'holded') showLoading(funnyLoading());
     const res = await loadForStartup((step) => showLoading(progressLabel(step)));
     if (!res) return false;
     setSnapshot(res.snapshot, res.diff);

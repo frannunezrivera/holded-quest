@@ -9,7 +9,8 @@ export interface Settings {
   period: PeriodId;
   volume: number; // 0..1
   muted: boolean;
-  musicOn: boolean;
+  /** Sound (music and effects) starts off and only plays once the player turns it on. */
+  music: boolean;
   rememberKey: boolean;
   mode: 'demo' | 'holded' | null;
   lastRateLimit: RateLimitInfo | null;
@@ -24,7 +25,7 @@ const defaults = (): Settings => ({
   period: 'thisYear',
   volume: 0.7,
   muted: false,
-  musicOn: true,
+  music: false,
   rememberKey: false,
   mode: null,
   lastRateLimit: null,
@@ -94,6 +95,32 @@ export async function saveCachedSnapshot(s: FinanceSnapshot | null) {
   try {
     if (s) await set(SNAPSHOT_KEY, s);
     else await del(SNAPSHOT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+// ---------- on-demand extras cache (bank movements, VAT quarter) ----------
+
+export interface CachedExtra<T> {
+  /** What the data was fetched for (period id, quarter start…); a mismatch means refetch. */
+  scope: string;
+  fetchedAt: string;
+  data: T;
+}
+
+export async function loadExtra<T>(name: 'cash' | 'vat'): Promise<CachedExtra<T> | null> {
+  try {
+    return ((await get(`hq.extra.${name}`)) as CachedExtra<T> | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveExtra<T>(name: 'cash' | 'vat', value: CachedExtra<T> | null) {
+  try {
+    if (value) await set(`hq.extra.${name}`, value);
+    else await del(`hq.extra.${name}`);
   } catch {
     /* ignore */
   }

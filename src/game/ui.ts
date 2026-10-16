@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { sfx } from '../audio/sfx';
+import { loadSettings } from '../data/store';
 
 export const W = 1920;
 export const H = 1080;
@@ -213,4 +214,49 @@ export function drawSky(scene: Phaser.Scene, top: number, bottom: number, w = W,
   g.fillGradientStyle(top, top, bottom, bottom, 1);
   g.fillRect(0, 0, w, h);
   return g;
+}
+
+/**
+ * Round sound on/off button (music and effects) used on the title screen and in the HUD. It
+ * follows the setting, so changing it anywhere (Settings, the M key) updates every copy.
+ */
+export function musicButton(scene: Phaser.Scene, x: number, y: number, onToggle: (on: boolean) => void) {
+  const bg = scene.add.graphics();
+  bg.fillStyle(0x241a45, 0.88);
+  bg.fillRoundedRect(x - 38, y - 38, 76, 76, 24);
+  // Drawn rather than an emoji: emoji glyphs don't render reliably on every canvas.
+  const icon = scene.add.graphics();
+  const zone = scene.add.zone(x, y, 76, 76).setInteractive({ useHandCursor: true });
+  const isOn = () => loadSettings().music && !loadSettings().muted;
+  const render = () => {
+    const on = isOn();
+    const c = on ? 0xffffff : 0x8a82b0;
+    icon.clear();
+    icon.fillStyle(c, 1);
+    icon.fillRect(x - 20, y - 8, 10, 16);
+    icon.fillPoints([new Phaser.Math.Vector2(x - 10, y - 8), new Phaser.Math.Vector2(x + 4, y - 20), new Phaser.Math.Vector2(x + 4, y + 20), new Phaser.Math.Vector2(x - 10, y + 8)], true);
+    if (on) {
+      icon.lineStyle(4, c, 1);
+      icon.beginPath();
+      icon.arc(x + 6, y, 10, -0.8, 0.8);
+      icon.strokePath();
+      icon.beginPath();
+      icon.arc(x + 6, y, 18, -0.8, 0.8);
+      icon.strokePath();
+    }
+    if (!on) {
+      icon.lineStyle(6, 0xff4d5e, 1);
+      icon.lineBetween(x - 24, y + 24, x + 24, y - 24);
+    }
+  };
+  zone.on('pointerdown', () => {
+    onToggle(!isOn());
+    sfx('select');
+  });
+  zone.on('pointerover', () => bg.setAlpha(1.15));
+  zone.on('pointerout', () => bg.setAlpha(1));
+  window.addEventListener('hq:settings', render);
+  scene.events.once('shutdown', () => window.removeEventListener('hq:settings', render));
+  render();
+  return { bg, icon, zone };
 }
