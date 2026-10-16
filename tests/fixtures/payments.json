@@ -1,0 +1,12 @@
+{
+  "items": [
+    { "id": "p1", "contact_name": "Acme S.L.", "amount": "1210.00", "date": "2026-03-10", "document_type": "invoice", "document_id": "x1" },
+    { "id": "p2", "contact_name": "Iberdrola", "amount": "-85.40", "date": "2026-03-12", "document_type": "purchase", "document_id": "x2" },
+    { "id": "p3", "contact_name": "Beta Corp", "amount": "300.00", "date": "2026-04-02", "document_type": "salesreceipt" },
+    { "id": "p4", "contact_name": "Gestoría", "amount": "150.00", "date": "2026-04-05", "document_type": "purchase" },
+    { "id": "p5", "contact_name": "Old", "amount": "999.00", "date": "2025-12-20", "document_type": "invoice" },
+    { "id": "p6", "contact_name": "Unknown out", "amount": "-40.00", "date": "2026-05-01" }
+  ],
+  "cursor": null,
+  "has_more": false
+}

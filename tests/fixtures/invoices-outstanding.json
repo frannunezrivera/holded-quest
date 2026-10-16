@@ -1,0 +1,10 @@
+{
+  "items": [
+    { "id": "inv1", "document_number": "F260001", "contact_id": "c1", "contact_name": "Acme S.L.", "date": "2026-08-01", "due_date": "2026-08-31", "subtotal": "1000.00", "tax": "210.00", "total": "1210.00", "currency": "eur", "status": "pending", "approval_status": "approved", "payments_total": "0.00", "payments_pending": "1210.00" },
+    { "id": "inv2", "document_number": "F260002", "contact_id": "c2", "contact_name": "Beta Corp", "date": "2026-10-01", "due_date": "2026-11-01", "total": "500.00", "currency": "eur", "status": "partial", "approval_status": "approved", "payments_total": "200.00", "payments_pending": "300.00" },
+    { "id": "inv3", "document_number": "F260003", "contact_name": "Gamma", "date": "2026-09-01", "due_date": "2026-09-15", "total": "1.234,56", "currency": "eur", "status": "pending", "approval_status": "draft", "payments_total": "0", "payments_pending": "1.234,56" },
+    { "id": "inv4", "document_number": "F260004", "contact_name": "Delta", "date": "2026-07-01", "due_date": "2026-07-15", "total": "99.00", "currency": "eur", "status": "cancelled", "payments_total": "0", "payments_pending": "99.00" }
+  ],
+  "cursor": null,
+  "has_more": false
+}
