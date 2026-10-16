@@ -4,7 +4,7 @@ import type { Doc } from '../../data/types';
 import { short } from '../../data/labels';
 import { money, moneyShort, t } from '../../i18n/i18n';
 import { birds, drawBackdrop } from '../backdrop';
-import { burst, confetti, popText, shockwave, sparkle } from '../fx';
+import { burst, confetti, pick, popText, shockwave, sparkle } from '../fx';
 import { state } from '../state';
 import { H, W, text } from '../ui';
 import { MiniGame } from './MiniGame';
@@ -319,7 +319,7 @@ export class BalloonCatch extends MiniGame {
     }
     if (!b.golden) {
       sfx('sad', { volume: 0.35 });
-      popText(this, b.img.x, 60, `${t('balloon.escaped')}`, '#FFB3C0', 26, { rise: -40, duration: 700 });
+      popText(this, b.img.x, 60, pick([t('balloon.escaped'), t('balloon.escaped.2'), t('balloon.escaped.3')]), '#FFB3C0', 26, { rise: -40, duration: 900 });
     }
     b.img.destroy();
     b.label.destroy();

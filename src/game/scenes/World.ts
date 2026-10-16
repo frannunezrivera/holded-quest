@@ -24,7 +24,7 @@ import { isModalOpen } from '../../ui/overlay';
 import { openTrophies } from '../../ui/trophies';
 import { planeKey } from '../art/textures';
 import { birds, drawBackdrop } from '../backdrop';
-import { confetti, popText, rectZone, shockwave, sparkle } from '../fx';
+import { confetti, pick, popText, rectZone, say, shockwave, sparkle } from '../fx';
 import { Hero } from '../hero';
 import { grant, setProgress, state, touchVisit } from '../state';
 import { Button, ButtonGroup, H, W, panel, skyColors, text } from '../ui';
@@ -92,6 +92,9 @@ export class World extends Phaser.Scene {
   private jumpQueued = false;
   private planes: { img: Phaser.GameObjects.Image; a: number; speed: number; rx: number; ry: number }[] = [];
   private arrows = new Map<ZoneId, Phaser.GameObjects.Text>();
+  /** Pip's one-liners, each at most once per visit to the world. */
+  private said = new Set<string>();
+  private idleFor = 0;
   private captionBox: Phaser.GameObjects.Container | null = null;
   private touch = { left: false, right: false, jump: false };
   private touchEnter: { box: Phaser.GameObjects.Container; zone: Phaser.GameObjects.Zone } | null = null;
@@ -121,6 +124,8 @@ export class World extends Phaser.Scene {
     this.starting = false;
     this.summitsCelebrated = new Set();
     this.arrows = new Map();
+    this.said = new Set();
+    this.idleFor = 0;
     this.captionBox = null;
     this.touch = { left: false, right: false, jump: false };
     this.touchEnter = null;
@@ -597,6 +602,7 @@ export class World extends Phaser.Scene {
     this.tweens.add({ targets: this.bubble, alpha: 1, scale: 1, duration: 200, ease: 'Back.out' });
     sfx('hover', { pitch: 0.8 + layer.index * 0.06 });
     if (layer.last) this.celebrateSummit(layer);
+    else if (layer.stratum.key === 'd90plus' && layer.stratum.count > 0) this.pipSay('beard', t('pip.beard'));
   }
 
   private celebrateSummit(layer: Layer) {
@@ -610,7 +616,19 @@ export class World extends Phaser.Scene {
     this.hero.setMood('pig-happy', 1500);
     const total = sum(this.layers.filter((l) => l.mountain === layer.mountain), (l) => l.stratum.total);
     popText(this, x, y - 140, t('world.summit', { amount: money(total, this.snap.currency, 0) }), '#FFE45C', 46);
+    const noDebts = layer.mountain === 'debt' && !this.snap.owedToSuppliers.length && !this.isLocked('debt');
+    this.time.delayedCall(1700, () =>
+      this.pipSay(layer.mountain + 'Top', layer.mountain === 'gold' ? pick([t('pip.goldTop.1'), t('pip.goldTop.2')]) : noDebts ? t('pip.noDebts') : t('pip.debtTop')),
+    );
     grant([layer.mountain === 'gold' ? 'climber' : 'brave']);
+  }
+
+  /** Pip comments on what's around: at most once per line per visit, never during menus or tours. */
+  private pipSay(id: string, line: string) {
+    if (this.said.has(id) || this.menu || this.cinematic) return;
+    this.said.add(id);
+    // Beside Pip's head, so it never covers the stratum bubble or the summit labels above.
+    say(this, this.hero.sprite, line, { dx: 250, dy: -70, depth: 96, size: 24 });
   }
 
   // ------------------------------------------------------------------ input
@@ -1018,6 +1036,12 @@ export class World extends Phaser.Scene {
       }
     }
     if (this.pendingOpen && this.hero.target === null && near?.id === this.pendingOpen) this.openZoneMenu(this.pendingOpen);
+    if (near?.id === 'harbor') this.pipSay('harbor', t('pip.harbor'));
+    if (near?.id === 'vault') this.pipSay('bank', t('pip.bank'));
+    // Standing around for a while gets a nudge.
+    const still = !blocked && this.hero.onGround && Math.abs(this.hero.body.velocity.x) < 5 && this.hero.target === null;
+    this.idleFor = still ? this.idleFor + dt : 0;
+    if (this.idleFor > 15) this.pipSay('idle', t('pip.idle'));
 
     // Standing on a stratum?
     let layer: Layer | null = null;

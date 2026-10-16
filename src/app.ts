@@ -104,7 +104,12 @@ export function errorMessage(err: unknown): string {
   return t('settings.err.generic', { status: (err as Error)?.message ?? '?' });
 }
 
-const progressLabel = (step: string) => t(`loading.${step}` as MessageKey) || t('loading.generic');
+const progressLabel = (step: string) => t(`loading.${step}` as MessageKey) || funnyLoading();
+
+/** Generic waits get a joke instead of "Loading…". */
+function funnyLoading() {
+  return t(`loading.joke${1 + Math.floor(Math.random() * 5)}` as MessageKey);
+}
 
 /**
  * Downloads everything with the new key and only then saves it, so a typo never replaces a
@@ -114,7 +119,7 @@ export async function connectHolded(key: string, remember: boolean) {
   const clean = key.trim();
   // A different key may be a different company: don't diff against the old cache.
   const sameKey = loadApiKey() === clean;
-  showLoading(t('loading.generic'));
+  showLoading(funnyLoading());
   try {
     const { snapshot, diff } = await refreshFromHolded(clean, loadSettings().period, (s) => showLoading(progressLabel(s)), sameKey);
     saveApiKey(clean, remember);
@@ -140,7 +145,7 @@ export async function refreshData(): Promise<boolean> {
     openSettings({ focusKey: true });
     return false;
   }
-  showLoading(t('loading.generic'));
+  showLoading(funnyLoading());
   try {
     const { snapshot, diff } = await refreshFromHolded(key, s.period, (step) => showLoading(progressLabel(step)));
     setSnapshot(snapshot, diff);
@@ -179,7 +184,7 @@ export async function boot(): Promise<boolean> {
   const s = loadSettings();
   if (!s.mode) return false;
   try {
-    if (s.mode === 'holded') showLoading(t('loading.generic'));
+    if (s.mode === 'holded') showLoading(funnyLoading());
     const res = await loadForStartup((step) => showLoading(progressLabel(step)));
     if (!res) return false;
     setSnapshot(res.snapshot, res.diff);

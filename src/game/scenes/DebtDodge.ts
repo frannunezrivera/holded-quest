@@ -6,7 +6,7 @@ import { short } from '../../data/labels';
 import { money, moneyShort, num, t } from '../../i18n/i18n';
 import { planeKey } from '../art/textures';
 import { drawBackdrop } from '../backdrop';
-import { burst, confetti, flash, hitStop, popText, shockwave, sparkle } from '../fx';
+import { burst, confetti, flash, hitStop, pick, popText, shockwave, sparkle } from '../fx';
 import { state } from '../state';
 import { H, W, text } from '../ui';
 import { MiniGame } from './MiniGame';
@@ -349,7 +349,7 @@ export class DebtDodge extends MiniGame {
     if (this.lives <= 0) {
       this.hero.setTexture('pig-fly-hurt');
       this.tweens.add({ targets: this.hero, y: H + 200, angle: 540, duration: 1200, ease: 'Cubic.in' });
-      this.finish(t('game.gameover'));
+      this.finish(pick([t('game.gameover'), t('dodge.over.2'), t('dodge.over.3')]));
     }
   }
 

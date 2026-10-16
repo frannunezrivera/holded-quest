@@ -7,7 +7,7 @@ import { short } from '../../data/labels';
 import type { VatDoc, VatQuarter } from '../../data/types';
 import { fmtDate, money, moneyShort, num, t } from '../../i18n/i18n';
 import { drawBackdrop } from '../backdrop';
-import { burst, confetti, flash, hitStop, popText, shockwave, sparkle } from '../fx';
+import { burst, confetti, flash, hitStop, pick, popText, say, shockwave, sparkle } from '../fx';
 import { state } from '../state';
 import { H, W, text } from '../ui';
 import { MiniGame } from './MiniGame';
@@ -59,6 +59,7 @@ export class BossVat extends MiniGame {
   private attackIn = 2;
   private slamIn = 5;
   private receiptIn = 2.5;
+  private tauntIn = 2.5;
   private superCharge = 0;
   private dealt = 0;
   private phase = 1;
@@ -103,6 +104,7 @@ export class BossVat extends MiniGame {
     this.attackIn = 2.2;
     this.slamIn = 6;
     this.receiptIn = 2.5;
+    this.tauntIn = 2.5;
     this.superCharge = this.vat.input > 0 ? 0 : 0.2;
     this.dealt = 0;
     this.phase = 1;
@@ -152,6 +154,18 @@ export class BossVat extends MiniGame {
     });
   }
 
+  /** Hacienda (a parody) talks back. */
+  private taunt(line: string, important = false) {
+    say(this, this.boss, line, { dx: 260, dy: -110, depth: 30, screen: true, color: important ? 0xffe0e6 : 0xffffff, duration: important ? 2200 : 2800 });
+  }
+
+  private randomTaunt() {
+    const lines = [1, 2, 3, 4, 5, 6, 7].map((i) => t(`boss.taunt.${i}` as Parameters<typeof t>[0]));
+    const left = state.snapshot ? daysBetween(state.snapshot.today, this.vat.deadline) : -1;
+    if (this.vat.closed && left >= 0) lines.push(t('boss.taunt.days', { n: left }));
+    this.taunt(pick(lines));
+  }
+
   private drawHud() {
     const cur = this.vat.currency;
     const g = this.hpBar;
@@ -185,7 +199,10 @@ export class BossVat extends MiniGame {
     beam.setBlendMode(Phaser.BlendModes.ADD);
     this.tweens.add({ targets: beam, alpha: 0, scaleX: 0.2, duration: 380, onComplete: () => beam.destroy() });
     popText(this, this.player.x, PLAYER_Y - 160, t('boss.super'), '#FFE45C', 44);
-    if (Math.abs(this.player.x - this.boss.x) < 170 * this.boss.scaleX + 40) this.damage(dmg, true);
+    if (Math.abs(this.player.x - this.boss.x) < 170 * this.boss.scaleX + 40) {
+      this.damage(dmg, true);
+      if (this.hp > 0) this.taunt(t('boss.taunt.ouch'), true);
+    }
     this.drawHud();
   }
 
@@ -206,7 +223,7 @@ export class BossVat extends MiniGame {
     const phase = this.hp > 66 ? 1 : this.hp > 33 ? 2 : 3;
     if (phase !== this.phase) {
       this.phase = phase;
-      popText(this, W / 2, 520, t(phase === 2 ? 'boss.phase2' : 'boss.phase3'), '#FF9AA6', 64, { rise: 40, duration: 900 });
+      this.taunt(t(phase === 2 ? 'boss.taunt.phase2' : 'boss.taunt.phase3'), true);
       sfx('iva');
       if (phase === 3) {
         this.boss.setTexture('boss-angry');
@@ -232,7 +249,8 @@ export class BossVat extends MiniGame {
         sfx('pop', { pitch: 0.6 + i * 0.1 });
       });
     }
-    this.tweens.add({ targets: this.boss, scale: 0, angle: 200, alpha: 0, duration: 1000, delay: 400, ease: 'Back.in' });
+    this.taunt(t('boss.taunt.defeat'), true);
+    this.tweens.add({ targets: this.boss, scale: 0, angle: 200, alpha: 0, duration: 1000, delay: 700, ease: 'Back.in' });
     confetti(this, W / 2, 400, 120);
     this.finish(t('boss.win'));
   }
@@ -308,8 +326,9 @@ export class BossVat extends MiniGame {
     if (heart) heart.setTexture('heart-empty');
     if (this.lives <= 0) {
       this.running = false;
+      this.taunt(t('boss.taunt.victory'), true);
       this.finish(t('boss.lose'));
-    }
+    } else this.taunt(t('boss.taunt.hit'), true);
   }
 
   protected tick(dt: number, time: number) {
@@ -347,6 +366,11 @@ export class BossVat extends MiniGame {
       if (this.phase === 3) {
         this.slamIn -= dt;
         if (this.slamIn <= 0) this.slam();
+      }
+      this.tauntIn -= dt;
+      if (this.tauntIn <= 0) {
+        this.randomTaunt();
+        this.tauntIn = 5 + Math.random() * 2.5;
       }
       this.receiptIn -= dt;
       if (this.receiptIn <= 0) {
@@ -414,6 +438,7 @@ export class BossVat extends MiniGame {
     sfx('coinBig');
     sparkle(this, this.player.x, this.player.y - 40, 16);
     popText(this, this.player.x, this.player.y - 120, `${t('boss.deduction')} −${money(r.tax, this.vat.currency, 0)}`, '#FFE45C', 30);
+    if (Math.random() < 0.35) this.taunt(t('boss.taunt.receipt'));
     this.setScore();
     this.drawHud();
   }

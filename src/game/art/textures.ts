@@ -851,18 +851,33 @@ function drawBoss(ctx: CanvasRenderingContext2D, w: number, h: number, angry: bo
     ctx.strokeRect(-18, -34, 36, 40);
     ctx.restore();
   }
-  // Label plate
-  rr(ctx, cx - 92, h - 128, 184, 64, 16);
+  // Name plate: a parody, with our own emblem (a coin with a bite taken out), not any real logo.
+  rr(ctx, cx - 132, h - 128, 264, 64, 16);
   ctx.fillStyle = '#FFD54A';
   ctx.fill();
   ctx.lineWidth = 4;
   ctx.strokeStyle = '#B87A00';
   ctx.stroke();
-  ctx.font = '700 46px Fredoka, sans-serif';
+  const ex = cx - 98;
+  const ey = h - 96;
+  ellipse(ctx, ex, ey, 22, 22);
+  ctx.fillStyle = PALETTE.goldMid;
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = PALETTE.goldDark;
+  ctx.stroke();
+  euro(ctx, ex, ey + 1, 24, PALETTE.goldDark);
+  // The bite
+  ctx.fillStyle = '#FFD54A';
+  for (const [bx, by, br] of [[ex + 16, ey - 14, 9], [ex + 21, ey - 2, 7], [ex + 8, ey - 20, 7]] as const) {
+    ellipse(ctx, bx, by, br, br);
+    ctx.fill();
+  }
+  ctx.font = '700 34px Fredoka, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#3A2400';
-  ctx.fillText('IVA', cx, h - 94);
+  ctx.fillText('HACIENDA', cx + 22, h - 94);
   // Eyes
   for (const dir of [-1, 1]) {
     ellipse(ctx, cx + dir * 62, 130, 40, 44);
