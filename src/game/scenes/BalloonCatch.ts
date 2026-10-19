@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
 import { sfx } from '../../audio/sfx';
 import type { Doc } from '../../data/types';
+import { short } from '../../data/labels';
 import { money, moneyShort, t } from '../../i18n/i18n';
 import { birds, drawBackdrop } from '../backdrop';
-import { burst, confetti, popText, shockwave, sparkle } from '../fx';
+import { burst, confetti, pick, popText, shockwave, sparkle } from '../fx';
 import { state } from '../state';
 import { H, W, text } from '../ui';
 import { MiniGame } from './MiniGame';
@@ -148,7 +149,7 @@ export class BalloonCatch extends MiniGame {
     const key = golden ? 'balloon-gold' : doc && doc.daysOverdue > 30 ? 'balloon-red' : doc && doc.daysOverdue > 0 ? 'balloon-orange' : ['balloon-blue', 'balloon-green', 'balloon-purple'][Math.floor(Math.random() * 3)];
     const x = 160 + Math.random() * (W - 320);
     const img = this.add.image(x, H + 80, key).setScale(scale).setDepth(12);
-    const labelStr = golden ? '⏱ +5 s' : doc ? `${doc.contact}\n${moneyShort(doc.pending, doc.currency)}${doc.daysOverdue > 0 ? ` · ⚠${doc.daysOverdue}d` : ''}` : `${t('balloon.practice')}\n${moneyShort(value, this.currency)}`;
+    const labelStr = golden ? '⏱ +5 s' : doc ? `${short(doc.contact, 20)}\n${moneyShort(doc.pending, doc.currency)}${doc.daysOverdue > 0 ? ` · ⚠${doc.daysOverdue}d` : ''}` : `${t('balloon.practice')}\n${moneyShort(value, this.currency)}`;
     const label = text(this, x, H + 160, labelStr, 20, doc && doc.daysOverdue > 0 ? '#FFD0D6' : '#FFFFFF', { strokeThickness: 4 }).setDepth(13);
     const difficulty = Math.min(1, this.elapsedRound / 55);
     this.balloons.push({
@@ -291,7 +292,7 @@ export class BalloonCatch extends MiniGame {
         sfx('coinBig', { pitch: 1 + Math.min(0.6, this.streak * 0.06) });
         burst(this, this.register.x, this.register.y - 100, 'coin-sm', { count: 12, speed: [250, 550], angle: [220, 320], gravityY: 1300, rotate: true, lifespan: 1000, scale: [1, 0.7] });
         this.tweens.add({ targets: this.register, scaleY: { from: 0.85, to: 1 }, duration: 220, ease: 'Back.out' });
-        const who = b.doc ? `${b.doc.contact} ` : '';
+        const who = b.doc ? `${short(b.doc.contact, 18)} ` : '';
         // Alternate sides so consecutive catches don't stack on top of each other.
         const side = this.caughtCount % 2 ? -1 : 1;
         popText(this, this.register.x + side * 160, this.register.y - 200 - (this.caughtCount % 3) * 36, `${who}+${moneyShort(b.value, this.currency)}`, '#9CF6EA', 32);
@@ -318,7 +319,7 @@ export class BalloonCatch extends MiniGame {
     }
     if (!b.golden) {
       sfx('sad', { volume: 0.35 });
-      popText(this, b.img.x, 60, `${t('balloon.escaped')}`, '#FFB3C0', 26, { rise: -40, duration: 700 });
+      popText(this, b.img.x, 60, pick([t('balloon.escaped'), t('balloon.escaped.2'), t('balloon.escaped.3')]), '#FFB3C0', 26, { rise: -40, duration: 900 });
     }
     b.img.destroy();
     b.label.destroy();
@@ -351,7 +352,7 @@ export class BalloonCatch extends MiniGame {
       formatScore: (n) => money(n, cur, 0),
       summary: `${t('balloon.result', { amount: money(this.recovered, cur, 0) })} · ${this.caughtCount} 🎈 · ${Math.round(ratio * 100)}%`,
       listTitle: escaped.length ? t('balloon.escapedList') : undefined,
-      list: escaped.map((d) => [`${d.contact} · ${d.number}`, `${money(d.pending, d.currency, 0)}${d.daysOverdue > 0 ? ` · ⚠ ${d.daysOverdue} d` : ''}`]),
+      list: escaped.map((d) => [`${short(d.contact, 34)} · ${d.number}`, `${money(d.pending, d.currency, 0)}${d.daysOverdue > 0 ? ` · ⚠ ${d.daysOverdue} d` : ''}`]),
     };
   }
 }

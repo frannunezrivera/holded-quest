@@ -1,5 +1,5 @@
 import { addDays, daysBetween } from './parse';
-import type { HoldedAccountV2, HoldedDocV2, HoldedPaymentV2, Period, RawFinanceData } from './types';
+import type { HoldedAccountV2, HoldedBankMovementV2, HoldedDocV2, HoldedPaymentV2, Period, RawFinanceData } from './types';
 
 /** Small seeded PRNG so the demo company is the same on every load. */
 export function mulberry32(seed: number) {
@@ -102,5 +102,63 @@ export function generateDemoRaw(today: string, period: Period, seed = 20261015):
     payments,
     periodInvoices: null,
     accounts,
+  };
+}
+
+// ---------------------------------------------------------------- on-demand extras
+
+/** Bank statement lines for the demo accounts, from `from` to `today`, with a believable rhythm. */
+export function generateDemoMovements(from: string, today: string, seed = 77): Record<string, HoldedBankMovementV2[]> {
+  const rnd = mulberry32(seed);
+  const span = Math.max(1, daysBetween(from, today));
+  const out: Record<string, HoldedBankMovementV2[]> = { 'demo-bank-1': [], 'demo-bank-2': [], 'demo-card': [] };
+  let id = 0;
+  const push = (acc: string, date: string, amount: number, description: string) =>
+    out[acc].push({ id: `demo-mv-${id++}`, value_date: date, amount: amount.toFixed(2), description });
+  for (let d = 0; d <= span; d++) {
+    const date = addDays(from, d);
+    const day = +date.slice(8, 10);
+    const month = +date.slice(5, 7);
+    // Client payments land a few times a week, bigger at month end.
+    // Tuned so a month nets roughly +1.5k: the river wobbles with payroll and VAT but trends up.
+    if (rnd() < 0.25) push('demo-bank-1', date, Math.round((300 + rnd() ** 1.8 * 4200) * (day > 24 ? 1.4 : 1)), `Cobro ${CLIENTS[Math.floor(rnd() * CLIENTS.length)]}`);
+    if (rnd() < 0.18) push('demo-card', date, Math.round(60 + rnd() * 700), 'Liquidación Stripe');
+    if (day === 28) push('demo-bank-1', date, -Math.round(7800 + rnd() * 900), 'Nóminas');
+    if (day === 1) push('demo-bank-1', date, -1450, 'Alquiler oficina');
+    if (day === 5) push('demo-bank-2', date, -Math.round(180 + rnd() * 90), 'Seguros Atlas');
+    if (day === 20 && [1, 4, 7, 10].includes(month)) push('demo-bank-1', date, -Math.round(3800 + rnd() * 2400), 'AEAT · IVA trimestral (303)');
+    if (rnd() < 0.22) push('demo-bank-1', date, -Math.round(30 + rnd() ** 2 * 1600), `Pago ${SUPPLIERS[Math.floor(rnd() * SUPPLIERS.length)]}`);
+    if (day === 15 && rnd() < 0.5) push('demo-bank-2', date, Math.round(1500 + rnd() * 2500), 'Traspaso desde BBVA');
+    if (day === 15 && rnd() < 0.5) push('demo-bank-1', date, -Math.round(1500 + rnd() * 2500), 'Traspaso a Caixa');
+  }
+  return out;
+}
+
+/** Sales and purchase invoices (with VAT) issued during a quarter. */
+export function generateDemoQuarterDocs(from: string, to: string, today: string, seed = 303): { invoices: HoldedDocV2[]; purchases: HoldedDocV2[] } {
+  const rnd = mulberry32(seed);
+  const last = to < today ? to : today;
+  const span = Math.max(0, daysBetween(from, last));
+  const doc = (kind: 'inv' | 'pur', i: number, names: readonly string[], min: number, max: number, rates: number[]): HoldedDocV2 => {
+    const base = Math.round((min + rnd() ** 1.7 * (max - min)) * 100) / 100;
+    const rate = rates[Math.floor(rnd() * rates.length)];
+    const tax = Math.round(base * rate) / 100;
+    return {
+      id: `demo-q-${kind}-${i}`,
+      document_number: kind === 'inv' ? `F26${String(3000 + i)}` : `C-${String(700 + i)}`,
+      contact_name: names[Math.floor(rnd() * names.length)],
+      date: addDays(from, Math.floor(rnd() * (span + 1))),
+      subtotal: fmt(base),
+      tax: fmt(tax),
+      total: fmt(base + tax),
+      status: rnd() < 0.7 ? 'completed' : 'pending',
+      approval_status: 'approved',
+    };
+  };
+  const nInv = Math.max(4, Math.round((span / 92) * 24));
+  const nPur = Math.max(3, Math.round((span / 92) * 18));
+  return {
+    invoices: Array.from({ length: nInv }, (_, i) => doc('inv', i, CLIENTS, 250, 6800, [21])),
+    purchases: Array.from({ length: nPur }, (_, i) => doc('pur', i, SUPPLIERS, 30, 2400, [21, 21, 21, 10])),
   };
 }

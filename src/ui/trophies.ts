@@ -23,6 +23,8 @@ export function openTrophies() {
         kpi('🏦 ' + t('trophy.vault'), `${p.bests.vault.toLocaleString()} pts`, money(p.totalSecured, cur, 0)),
         kpi('✈️ ' + t('trophy.dodge'), `${p.bests.dodge.toFixed(1)} s`),
         kpi('🎈 ' + t('trophy.balloon'), money(p.bests.balloon, cur, 0)),
+        kpi('🌊 ' + t('trophy.river'), `${p.bests.river.toLocaleString()} pts`),
+        kpi('⚔ ' + t('trophy.boss'), `${p.bests.boss.toLocaleString()} pts`),
         kpi('⭐ ' + t('hud.level', { n: lv.level }), `${p.xp} XP`, `${lv.into}/${lv.span}`),
         kpi('🔥 ' + t('trophy.streak'), t('hud.streak', { n: p.streak.count })),
       );

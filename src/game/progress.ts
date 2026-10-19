@@ -14,10 +14,13 @@ export const ACHIEVEMENTS = [
   'streak3',
   'streak7',
   'explorer',
+  'river',
+  'boss',
+  'deductions',
 ] as const;
 
 export type AchievementId = (typeof ACHIEVEMENTS)[number];
-export type GameId = 'vault' | 'dodge' | 'balloon';
+export type GameId = 'vault' | 'dodge' | 'balloon' | 'river' | 'boss';
 
 export interface Progress {
   xp: number;
@@ -27,16 +30,22 @@ export interface Progress {
   achievements: AchievementId[];
   exploredZones: string[];
   totalSecured: number;
+  /** The first-visit tour has been shown (or skipped). */
+  guideDone: boolean;
+  /** Zones whose menu the player has opened; the others get a bouncing arrow. */
+  enteredZones: string[];
 }
 
 export const emptyProgress = (): Progress => ({
   xp: 0,
   streak: { count: 0, lastDay: null },
-  bests: { vault: 0, dodge: 0, balloon: 0 },
-  plays: { vault: 0, dodge: 0, balloon: 0 },
+  bests: { vault: 0, dodge: 0, balloon: 0, river: 0, boss: 0 },
+  plays: { vault: 0, dodge: 0, balloon: 0, river: 0, boss: 0 },
   achievements: [],
   exploredZones: [],
   totalSecured: 0,
+  guideDone: false,
+  enteredZones: [],
 });
 
 /** Total XP needed to reach `level` (level 1 = 0 XP): 100, 300, 600, 1000… */
@@ -65,9 +74,9 @@ export interface RunResult {
   game: GameId;
   /** Vault: points (€ × multiplier / 10) · Dodge: seconds survived · Balloon: € recovered. */
   score: number;
-  /** 0..1 share of what was available (vault/balloon); unused for dodge. */
+  /** 0..1 share of what was available (vault/balloon/boss deductions); unused for dodge. */
   ratio?: number;
-  extra?: { maxMultiplier?: number; nearMisses?: number; caught?: number; secured?: number };
+  extra?: { maxMultiplier?: number; nearMisses?: number; caught?: number; secured?: number; won?: boolean; finished?: boolean };
 }
 
 export function xpForRun(r: RunResult): number {
@@ -78,6 +87,10 @@ export function xpForRun(r: RunResult): number {
       return Math.round(10 + Math.min(90, r.score * 1.2) + 2 * (r.extra?.nearMisses ?? 0));
     case 'balloon':
       return Math.round(15 + 60 * Math.min(1, r.ratio ?? 0) + 2 * (r.extra?.caught ?? 0));
+    case 'river':
+      return Math.round(20 + Math.min(60, r.score / 100) + (r.extra?.finished ? 20 : 0));
+    case 'boss':
+      return Math.round(20 + (r.extra?.won ? 80 : 0) + 40 * Math.min(1, r.ratio ?? 0));
   }
 }
 
@@ -93,6 +106,11 @@ export function achievementsForRun(r: RunResult): AchievementId[] {
     if ((r.extra?.nearMisses ?? 0) >= 10) out.push('near10');
   }
   if (r.game === 'balloon' && (r.extra?.caught ?? 0) >= 10) out.push('balloon10');
+  if (r.game === 'river' && r.extra?.finished) out.push('river');
+  if (r.game === 'boss') {
+    if (r.extra?.won) out.push('boss');
+    if ((r.ratio ?? 0) >= 0.999) out.push('deductions');
+  }
   return out;
 }
 
@@ -144,6 +162,7 @@ export function loadProgress(): Progress {
       bests: { ...base.bests, ...parsed.bests },
       plays: { ...base.plays, ...parsed.plays },
       streak: { ...base.streak, ...parsed.streak },
+      enteredZones: parsed.enteredZones ?? [],
     };
   } catch {
     return emptyProgress();

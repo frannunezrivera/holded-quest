@@ -1,5 +1,6 @@
 import { audioContext } from './sfx';
-import { loadSettings } from '../data/store';
+import { loadSettings, saveSettings } from '../data/store';
+import { unlockAudio } from './sfx';
 
 /**
  * A tiny chiptune step sequencer on WebAudio: bass, arpeggio, lead, pad and drums,
@@ -27,9 +28,52 @@ interface SongDef {
   arpGain?: number;
 }
 
-export type SongId = 'title' | 'world' | 'rush' | 'dodge' | 'balloon';
+export type SongId = 'title' | 'world' | 'rush' | 'dodge' | 'balloon' | 'river' | 'boss';
 
 const SONGS: Record<SongId, SongDef> = {
+  river: {
+    bpm: 100,
+    key: 41, // F, flowing
+    chords: [[0, 'maj'], [9, 'min'], [5, 'maj'], [7, 'maj']],
+    kick: 'x.......x.......',
+    snare: '........x.......',
+    hat: '..x...x...x...x.',
+    bass: 'r...o...f...o...',
+    arp: '0.1.2.3.2.1.2.1.',
+    arpOctave: 24,
+    lead: [
+      [[0, 12, 4], [4, 16, 2], [6, 19, 2], [8, 16, 8]],
+      [[0, 16, 4], [4, 12, 4], [8, 9, 8]],
+      [[0, 9, 4], [4, 12, 2], [6, 17, 2], [8, 16, 8]],
+      [[0, 14, 4], [4, 11, 4], [8, 7, 8]],
+    ],
+    bassWave: 'triangle',
+    arpWave: 'triangle',
+    leadWave: 'square',
+    pad: true,
+    arpGain: 0.05,
+  },
+  boss: {
+    bpm: 152,
+    key: 40, // E minor, menacing
+    chords: [[0, 'min'], [8, 'maj'], [10, 'maj'], [0, 'min']],
+    kick: 'x...x...x..xx...',
+    snare: '....x.......x..x',
+    hat: 'x.xxx.xxx.xxx.xx',
+    bass: 'r.rr.rrorr.rr.ro',
+    arp: '0120310201203102',
+    arpOctave: 12,
+    lead: [
+      [[0, 12, 3], [3, 15, 3], [6, 19, 2], [8, 18, 4], [12, 15, 4]],
+      [[0, 20, 6], [6, 19, 2], [8, 15, 8]],
+      [[0, 22, 3], [3, 19, 3], [6, 17, 2], [8, 15, 4], [12, 14, 4]],
+      [[0, 12, 4], [4, 7, 4], [8, 12, 8]],
+    ],
+    bassWave: 'sawtooth',
+    arpWave: 'square',
+    leadWave: 'sawtooth',
+    arpGain: 0.028,
+  },
   title: {
     bpm: 96,
     key: 38, // D
@@ -163,7 +207,7 @@ class Sequencer {
   applyVolume() {
     if (!this.master || !this.ctx) return;
     const s = loadSettings();
-    const v = s.muted || !s.musicOn ? 0 : 0.55 * s.volume;
+    const v = s.muted || !s.music ? 0 : 0.55 * s.volume;
     this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.08);
   }
 
@@ -325,3 +369,14 @@ class Sequencer {
 }
 
 export const music = new Sequencer();
+
+/** The single sound switch: music and effects go on and off together. */
+export function setSoundEnabled(on: boolean) {
+  if (on) unlockAudio();
+  saveSettings({ music: on, muted: !on });
+}
+
+export const soundOn = () => {
+  const s = loadSettings();
+  return s.music && !s.muted;
+};

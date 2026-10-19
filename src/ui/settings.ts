@@ -1,9 +1,11 @@
 import { changeLanguage, changePeriod, connectHolded, errorMessage, playDemo, refreshData, goToTitle } from '../app';
+import { clearExtras } from '../data/extras';
 import { testKey } from '../data/service';
 import { forgetApiKey, loadApiKey, loadSettings, saveCachedSnapshot, saveSettings } from '../data/store';
 import type { PeriodId } from '../data/types';
 import { state } from '../game/state';
 import { fmtRelative, t } from '../i18n/i18n';
+import { setSoundEnabled } from '../audio/music';
 import { unlockAudio } from '../audio/sfx';
 import { h, openModal } from './overlay';
 
@@ -84,6 +86,7 @@ export function openSettings(opts: { focusKey?: boolean } = {}) {
               keyInput.value = '';
               // Real financial data must not outlive the key that downloaded it.
               await saveCachedSnapshot(null);
+              await clearExtras();
               if (state.snapshot?.source === 'holded') state.snapshot = null;
               saveSettings({ mode: s.mode === 'holded' ? null : s.mode });
               setStatus('🔒');
@@ -145,8 +148,7 @@ export function openSettings(opts: { focusKey?: boolean } = {}) {
         type: 'range', min: '0', max: '1', step: '0.05', value: String(s.volume), 'aria-label': t('settings.volume'),
         oninput: () => saveSettings({ volume: Number(volume.value) }),
       });
-      const music = h('input', { type: 'checkbox', checked: s.musicOn, onchange: () => saveSettings({ musicOn: music.checked }) });
-      const mute = h('input', { type: 'checkbox', checked: s.muted, onchange: () => saveSettings({ muted: mute.checked }) });
+      const sound = h('input', { type: 'checkbox', checked: s.music && !s.muted, onchange: () => setSoundEnabled(sound.checked) });
 
       const prefs = h('section', { class: 'hq-section' },
         h('div', { class: 'hq-field' }, h('label', { for: 'hq-period' }, '📅 ' + t('settings.period')), periodSelect),
@@ -154,7 +156,7 @@ export function openSettings(opts: { focusKey?: boolean } = {}) {
         h('div', { class: 'hq-field' },
           h('span', { class: 'hq-label' }, '🔊 ' + t('settings.audio')),
           h('div', { class: 'hq-row' }, h('span', { class: 'hq-help' }, t('settings.volume')), volume),
-          h('div', { class: 'hq-row' }, h('label', { class: 'hq-check' }, music, t('settings.music')), h('label', { class: 'hq-check' }, mute, t('settings.mute'))),
+          h('div', { class: 'hq-row' }, h('label', { class: 'hq-check' }, sound, t('settings.music'))),
         ),
         h('div', { class: 'hq-row' }, h('button', { class: 'hq-btn ghost', type: 'button', onclick: () => { close(); playDemo(); } }, '🎮 ' + t('settings.demo'))),
       );

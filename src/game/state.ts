@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { SnapshotDiff } from '../data/diff';
-import type { FinanceSnapshot } from '../data/types';
+import type { CashSeries, FinanceSnapshot, VatQuarter } from '../data/types';
 import { toIsoDate } from '../data/parse';
 import { overdue } from '../data/aggregate';
 import { loadProgress, saveProgress, touchStreak, unlock, type AchievementId, type Progress } from './progress';
@@ -8,6 +8,9 @@ import { loadProgress, saveProgress, touchStreak, unlock, type AchievementId, ty
 /** Shared game state: the current finance snapshot and the player's progress. */
 export const state = {
   snapshot: null as FinanceSnapshot | null,
+  /** Loaded on demand by the river / VAT boss. */
+  cash: null as CashSeries | null,
+  vat: null as VatQuarter | null,
   diff: null as SnapshotDiff | null,
   progress: loadProgress(),
   events: new Phaser.Events.EventEmitter(),
@@ -23,6 +26,8 @@ export const state = {
 
 export function setSnapshot(snapshot: FinanceSnapshot, diff: SnapshotDiff | null = null) {
   state.snapshot = snapshot;
+  state.cash = null;
+  state.vat = null;
   state.diff = diff;
   state.events.emit('snapshot', snapshot);
 }

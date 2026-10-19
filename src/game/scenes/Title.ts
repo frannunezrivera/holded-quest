@@ -1,13 +1,13 @@
 import Phaser from 'phaser';
 import { changeLanguage, playDemo } from '../../app';
-import { music } from '../../audio/music';
+import { music, setSoundEnabled } from '../../audio/music';
 import { audioContext, sfx, unlockAudio } from '../../audio/sfx';
 import { loadSettings } from '../../data/store';
 import { t } from '../../i18n/i18n';
 import { openSettings } from '../../ui/settings';
 import { drawBackdrop, birds } from '../backdrop';
 import { burst } from '../fx';
-import { Button, ButtonGroup, H, W, text } from '../ui';
+import { Button, ButtonGroup, H, W, musicButton, text } from '../ui';
 
 export class Title extends Phaser.Scene {
   constructor() {
@@ -67,6 +67,10 @@ export class Title extends Phaser.Scene {
     void es;
     void en;
     new Button(this, 90, 70, '⚙', () => openSettings(), { w: 96, h: 64, size: 30, color: 0x3b2f6b });
+    musicButton(this, 200, 70, (on) => {
+      setSoundEnabled(on);
+      if (on) music.play('title');
+    });
 
     text(this, W / 2, H - 34, t('title.hint'), 24, '#FFFFFF', { strokeThickness: 4 }).setAlpha(0.85);
 

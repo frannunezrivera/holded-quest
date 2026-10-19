@@ -140,3 +140,49 @@ export function rectZone(x: number, y: number, w: number, h: number): Phaser.Typ
     },
   };
 }
+
+const speaking = new WeakMap<object, Phaser.GameObjects.Container>();
+
+/**
+ * Comic speech bubble that follows a game object (Pip, the boss) for a few seconds.
+ * A new line from the same speaker replaces the previous one.
+ */
+export function say(
+  scene: Phaser.Scene,
+  speaker: { x: number; y: number },
+  line: string,
+  o: { dx?: number; dy?: number; duration?: number; depth?: number; color?: number; size?: number; screen?: boolean } = {},
+) {
+  speaking.get(speaker)?.destroy();
+  const label = text(scene, 0, 0, line, o.size ?? 26, '#2B1B3D', { stroke: null, shadow: false, weight: 600, wrap: 460 });
+  const w = label.width + 36;
+  const h = label.height + 20;
+  const g = scene.add.graphics();
+  g.fillStyle(0x1b1030, 0.25);
+  g.fillRoundedRect(-w / 2, -h / 2 + 5, w, h, 22);
+  g.fillStyle(o.color ?? 0xffffff, 1);
+  g.fillRoundedRect(-w / 2, -h / 2, w, h, 22);
+  g.fillTriangle(-14, h / 2 - 2, 14, h / 2 - 2, -4, h / 2 + 20);
+  // Stay fully on screen (when the scene doesn't scroll) even if the speaker is near an edge.
+  const place = () => {
+    let x = speaker.x + (o.dx ?? 0);
+    if (o.screen) x = Phaser.Math.Clamp(x, w / 2 + 12, scene.scale.width - w / 2 - 12);
+    return [x, speaker.y + (o.dy ?? -150)] as const;
+  };
+  const box = scene.add.container(...place(), [g, label]).setDepth(o.depth ?? 600).setScale(0.3);
+  speaking.set(speaker, box);
+  scene.tweens.add({ targets: box, scale: 1, duration: 220, ease: 'Back.out' });
+  const follow = () => box.active && box.setPosition(...place());
+  scene.events.on('update', follow);
+  scene.events.once('shutdown', () => scene.events.off('update', follow));
+  scene.time.delayedCall(o.duration ?? 2600, () => {
+    scene.events.off('update', follow);
+    if (!box.active) return;
+    scene.tweens.add({ targets: box, alpha: 0, scale: 0.8, duration: 200, onComplete: () => box.destroy() });
+    if (speaking.get(speaker) === box) speaking.delete(speaker);
+  });
+  return box;
+}
+
+/** A random entry from a list. */
+export const pick = <T>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)];
